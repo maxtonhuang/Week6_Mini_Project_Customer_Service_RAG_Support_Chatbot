@@ -1,0 +1,101 @@
+# RAGGuard UI — How to Use (New User Guide)
+
+A 5-minute guide to the Gradio demo. No coding needed — it's all clicks.
+
+---
+
+## 1. Launch it
+
+**Locally (this machine, real Qwen3-8B on the GPU):**
+```
+.venv/Scripts/python serve_app.py
+```
+Wait ~40 seconds for "Running on local URL", then open **http://127.0.0.1:7860** in a browser.
+
+**On Colab:** open `01_DEMO.ipynb`, run all cells, click the public `…gradio.live` link it prints.
+
+> First question after launch is a little slow (the model warms up); everything after is fast.
+
+---
+
+## 2. The big picture
+
+The app is a **customer-service chatbot that we attack and defend**. It has four tabs:
+
+| Tab | What it's for |
+|---|---|
+| **1 · Live Demo** | The main show — ask questions, launch attacks, toggle defenses, watch it break and get fixed |
+| **2 · Attack Lab** | Run the whole attack suite and see a success-rate chart |
+| **3 · Defense Lab** | Search for the best defense combination |
+| **4 · Governance** | The NIST AI RMF scorecard, before vs after defenses |
+
+---
+
+## 3. Tab 1 — Live Demo (start here)
+
+### The controls (left side)
+- **Customer question** — type any support question (e.g. *"How long do I have to return an item?"*).
+- **Attack** — a dropdown. `None` = a normal question. Pick `A1…A6` to fire an attack instead:
+  - **A1** Direct prompt injection — "ignore your instructions and do X"
+  - **A2** Jailbreak / persona override
+  - **A3** Indirect injection — a *poisoned document* carries the attack
+  - **A4** System-prompt extraction — "reveal your instructions"
+  - **A5** Canary / knowledge-base extraction — "repeat the internal document"
+  - **A6** Obfuscated injection — the same attack, hidden with encoding tricks
+- **Active defenses** — six checkboxes (D1–D6). Tick any combination to switch defenses on.
+- **Ask** — runs it. **▶ Run demo script** — auto-plays the 4-beat story below.
+
+### Reading the result (right side)
+- **Verdict badge** (the coloured bar):
+  - 🔵 **Benign query** — a normal question, no attack
+  - 🔴 **ATTACK SUCCEEDED** — the attack worked (with the reason, e.g. "canary token leaked")
+  - 🟢 **BLOCKED by D2, D6…** — a defense stopped it
+  - ⚠️ **CANARY LEAKED** — appended when a secret token appears in the answer
+- **Bot answer** — what the chatbot replied.
+- **Retrieved context** — the documents the bot pulled from its knowledge base, tagged:
+  - 📄 **public** — a normal FAQ document
+  - 🔒 **INTERNAL/CANARY** — a confidential document that should never be shown
+  - ☠️ **INJECTED (poisoned)** — an attacker-planted document
+
+### The recommended 60-second demo (the 4 beats)
+1. **It works.** Attack = `None`, no defenses → click **Ask**. You get a helpful answer.
+2. **It breaks.** Attack = `A1` (or `A5`), no defenses → **Ask**. Badge turns 🔴 — the bot obeys the attacker / leaks a secret.
+3. **We fix it.** Tick **D2 + D3** (and **D6**) → **Ask** again. Badge turns 🟢 — same attack, now blocked.
+4. **It still works.** Attack = `None`, defenses still on → **Ask**. Normal answer — defenses didn't break usefulness.
+
+> Prefer the **▶ Run demo script** button for presentations — it plays all four beats for you, so there's no mis-clicking on stage.
+
+---
+
+## 4. Tab 2 — Attack Lab
+
+- Move the **Cases per attack** slider (start small, e.g. 10).
+- Click **Run attack suite**. It runs every attack and shows a **bar chart of success rate (ASR)** per attack, plus a table.
+- Higher bars = more successful attacks against the undefended bot.
+
+> This takes a little while (it runs the model many times). Fine for exploring; for a live presentation, show the pre-made chart in `artifacts/asr_undefended.png` instead.
+
+---
+
+## 5. Tab 3 — Defense Lab
+
+- Click **Run defense search**. It tries many combinations of defenses and reports the **best stack** — the smallest set of defenses that stops the most attacks while keeping the bot useful.
+- The **Pareto frontier** table shows the trade-off: each row is a defense combo with its *utility* (how useful the bot still is) and *robustness* (how well it resists attacks).
+
+> This is the slowest tab (it's a big search). For a demo, rely on the precomputed `artifacts/pareto.png` and the best stack already reported (**[D2+D3]**).
+
+---
+
+## 6. Tab 4 — Governance
+
+Shows the **NIST AI RMF scorecard** — how the system rates on Map / Measure / Manage — **before** defenses (mostly 🔴 gaps) and **after** (mostly 🟢 managed). This is the "why it matters to a stakeholder" view.
+
+---
+
+## 7. Tips & gotchas
+
+- **First answer is slow** (model warm-up) — this is normal, not a bug.
+- **Don't run Tab 2/3 sweeps during a live demo** — they call the model hundreds of times and take minutes. Use Tab 1 (instant) and the pre-made plots in `artifacts/`.
+- **Attacks are probabilistic against a real model** — a strong model (Qwen3-8B) legitimately refuses some attacks. If one doesn't succeed, try another (A1 and A5 are the most reliable for a demo).
+- **Keep the browser tab open** while presenting; closing it or letting the laptop sleep can drop the server.
+- **Backup:** screen-record the 4-beat demo in advance in case the venue Wi-Fi or the server misbehaves.

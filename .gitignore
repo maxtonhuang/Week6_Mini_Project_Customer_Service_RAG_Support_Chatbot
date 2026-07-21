@@ -1,0 +1,28 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# --- Regenerated runtime artefacts (heavy / machine-specific — regenerate with run_full.py) ---
+artifacts/full/
+artifacts/cache/
+artifacts/gen_cache.json
+*.faiss
+*.index
+# NOTE: the rest of artifacts/ (results.json, plots, CSVs, governance.md, screenshots)
+# IS committed so teammates without a GPU have the results, plots, and demo data.
+
+# --- Course materials — not part of the pipeline; do not redistribute ---
+Lecture*.pdf
+Mini-project*.pdf
+Lab1_*.ipynb
+Lab2_*.ipynb
+Lab3_*.ipynb
+
+# --- OS / tooling ---
+.DS_Store
+Thumbs.db
+.playwright-mcp/
