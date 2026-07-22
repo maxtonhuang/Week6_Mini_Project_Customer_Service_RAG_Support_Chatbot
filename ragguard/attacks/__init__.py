@@ -1,8 +1,9 @@
-"""Attack suite A1-A7.
+"""Attack suite A1-A10.
 
-``build_all_attacks`` returns the static suite (A1-A6). The adaptive agent (A7)
-lives in ``ragguard.attacks.adaptive`` and is constructed separately because it
-needs the pipeline + judge at run time.
+``build_all_attacks`` returns the static suite (A1-A6 + A8-A10: A8 membership inference,
+A9 fingerprint/IP-ownership, A10 paraphrased system-prompt extraction). The adaptive agent
+(A7) lives in ``ragguard.attacks.adaptive`` and is constructed separately because it needs
+the pipeline + judge at run time.
 """
 from __future__ import annotations
 

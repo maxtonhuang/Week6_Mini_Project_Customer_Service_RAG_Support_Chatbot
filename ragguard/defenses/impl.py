@@ -1,6 +1,7 @@
-"""The six defenses (D1-D6). Each subclasses ``ragguard.interfaces.Defense`` and
-overrides only the hooks it needs. Heavy models (D2 classifier) load lazily with a
-stdlib heuristic fallback so everything runs offline.
+"""The defenses D1-D9. Each subclasses ``ragguard.interfaces.Defense`` and overrides only
+the hooks it needs. Heavy models (D2 classifier) load lazily with a stdlib heuristic fallback
+so everything runs offline. D7 access-control, D8 rate-limit and D9 semantic-leak/fingerprint
+filter were added in the hardening pass.
 """
 from __future__ import annotations
 

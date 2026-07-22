@@ -1,7 +1,9 @@
-"""Defense implementations (D1-D6).
+"""Defense implementations (D1-D9).
 
 ``build_all_defenses`` returns instances of every defense in canonical order. The
-pipeline enforces the D6-before-D2 ordering rule at pre-retrieval time.
+pipeline enforces the D6-before-D2 ordering rule at pre-retrieval time. The exhaustive
+Pareto search runs over D1-D6 only (``SEARCH_DEFENSE_IDS``); D7-D9 are targeted/deployment
+controls always-on in the full stack.
 """
 from __future__ import annotations
 
