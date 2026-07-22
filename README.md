@@ -51,15 +51,43 @@ or any heavy dependency.
 
 ## Running
 
-### With real models (Colab or a local GPU)
-1. Clone/upload this folder; open `00_MAIN.ipynb` (on Colab set the runtime to a GPU).
-2. `pip install -r requirements.txt`. For a **local NVIDIA GPU** also install a CUDA build
-   of torch, e.g. `pip install torch --index-url https://download.pytorch.org/whl/cu128`.
-3. Run all. The first cell **auto-detects the GPU's VRAM** and picks the best path —
+### First-time setup (from a fresh clone)
+
+Needs **Python 3.10–3.12** (not 3.13 — some GPU wheels lag on it). The first model run downloads
+Qwen3-8B (~16 GB) + the embedder + corpus from HuggingFace, so the first time you also need
+**internet + ~20 GB free disk** (cached afterwards; no HF token required).
+
+**Local — Windows (PowerShell):**
+```
+git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
+cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install torch --index-url https://download.pytorch.org/whl/cu128   # GPU only; skip on CPU-only
+```
+**Local — macOS / Linux:** same, but `python3.12 -m venv .venv` then `source .venv/bin/activate`.
+
+**Colab — no venv** (set the runtime to a GPU first):
+```
+!git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
+%cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
+!pip install -r requirements.txt
+```
+
+### Run the notebook (real models)
+1. Open `00_MAIN.ipynb` (on Colab set the runtime to a GPU).
+2. Run all. The first cell **auto-detects the GPU's VRAM** and picks the best path —
    full bf16, 4-bit, or a smaller model — installing `bitsandbytes` automatically if a
    4-bit path is chosen. It prints its choice (`model=… 4bit=… batch=…`). No manual setup.
-4. `FAST=True` validates the whole pipeline in minutes; `FAST=False` produces the report numbers.
-5. `01_DEMO.ipynb` (or `python serve_app.py`) launches the Gradio UI from the cached artefacts.
+3. `FAST=True` validates the whole pipeline in minutes; `FAST=False` produces the report numbers.
+
+### Launch the Gradio UI
+- **Local:** `.venv\Scripts\python serve_app.py` (Windows) or `./.venv/bin/python serve_app.py` (macOS/Linux) → open **http://127.0.0.1:7860**.
+- **Colab:** open `01_DEMO.ipynb`, run all cells, click the `…gradio.live` link it prints.
+
+The results/plots are committed, so the Governance tab and charts show real numbers immediately; the
+**Live Demo / Attack Lab / Defense Lab** tabs run the real pipeline live — no `run_full.py` needed first.
 
 **GPU auto-configuration (handled for you by `ragguard.autotune`):**
 

@@ -4,13 +4,58 @@ A 5-minute guide to the Gradio demo. No coding needed — it's all clicks.
 
 ---
 
-## 1. Launch it
+## 1. Set it up & launch it
 
-**Run locally (on a GPU):**
+> **Do "First-time setup" once per machine.** After that, just use "Launch it" each time.
+
+### First-time setup (from a fresh clone)
+
+You need **Python 3.10–3.12** (not 3.13 — some GPU wheels lag on it) and, for real speed, an
+**NVIDIA GPU**. The first launch downloads the model (~16 GB) from HuggingFace, so the first time
+you also need **internet + ~20 GB free disk** (cached afterwards). No HuggingFace token is required —
+everything is public.
+
+**Local — Windows (PowerShell):**
 ```
-.venv/Scripts/python serve_app.py
+git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
+cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
+py -3.12 -m venv .venv                 # create the virtual env (use 3.10–3.12)
+.\.venv\Scripts\Activate.ps1           # activate it
+pip install -r requirements.txt        # install the pipeline
+pip install torch --index-url https://download.pytorch.org/whl/cu128   # GPU only; skip on CPU-only
 ```
-Wait ~40 seconds for "Running on local URL", then open **http://127.0.0.1:7860** in a browser.
+
+**Local — macOS / Linux:**
+```
+git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
+cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# GPU only: pip install torch --index-url https://download.pytorch.org/whl/cu128
+```
+
+**Colab — no venv needed** (Colab already has Python + most of torch). First set the runtime to a GPU
+(**Runtime → Change runtime type → GPU**, e.g. T4/L4), then in the first cell:
+```
+!git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
+%cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
+!pip install -r requirements.txt
+```
+
+> You do **not** need to run `run_full.py` or create any files first. The results and plots
+> (`artifacts/results.json`, the charts, the Governance scorecard) are already committed, and the
+> live tabs build the pipeline themselves. `run_full.py` is only for regenerating the full report numbers.
+
+### Launch it
+
+**Local (on a GPU):**
+```
+.venv\Scripts\python serve_app.py          # Windows
+./.venv/bin/python serve_app.py            # macOS / Linux
+```
+Wait ~40 seconds for "Running on local URL" (longer on the very first launch, while the model
+downloads), then open **http://127.0.0.1:7860** in a browser.
 
 **On Colab:** open `01_DEMO.ipynb`, run all cells, click the public `…gradio.live` link it prints.
 
