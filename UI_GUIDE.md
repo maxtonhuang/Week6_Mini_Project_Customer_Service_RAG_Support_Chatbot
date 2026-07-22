@@ -75,6 +75,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 | **2 · Attack Lab** | Run the whole attack suite and see a success-rate chart |
 | **3 · Defense Lab** | Search for the best defense combination |
 | **4 · Governance** | The NIST AI RMF scorecard, before vs after defenses |
+| **5 · Run pipeline** | One button to run the whole pipeline (Quick or Full) and fill every tab; saves to Google Drive if mounted |
 
 ---
 
@@ -158,7 +159,30 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ---
 
-## 7. Tips & gotchas
+## 7. Tab 5 — Run pipeline (one button)
+
+This runs the **whole** red-team → blue-team pipeline and fills in every other tab — no notebook cell needed.
+
+- Pick a **Profile**:
+  - **Quick (~minutes)** — reduced sample sizes; great for a demo and enough to populate all tabs.
+  - **Full (~hours, resumable)** — the paper-grade numbers. If the Colab runtime disconnects mid-run, just press **▶ Run full pipeline** again — it resumes from the last completed phase.
+- Press **▶ Run full pipeline**. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots).
+- When it finishes, the **Attack Lab**, **Defense Lab** and **Governance** tabs refresh automatically with the new numbers and plots.
+- **🔄 Reload saved results** re-reads the last saved run — handy when you reopen the UI and want the previous results back.
+
+> It reuses the model the UI already loaded (no second copy in VRAM). Results save to `artifacts/` — or to **Google Drive** if mounted (below).
+
+### Persisting across reloads (Google Drive)
+
+A Colab VM is wiped when the runtime recycles, so results and the ~16 GB model download are normally lost. To keep them:
+
+- The notebooks include an **optional Drive cell** (`USE_DRIVE = True`, just below the setup cell) that mounts Google Drive and points the model cache at it. It asks you to authorise Drive once.
+- With Drive mounted, results/checkpoints save to `MyDrive/ragguard` and the model cache to `MyDrive/hf_cache` — so a later session **reloads your results** and **skips re-downloading the model**.
+- On startup the UI **automatically loads the last saved `results.json`**, so reopening the demo shows your previous run straight away (or click 🔄 Reload saved results).
+
+---
+
+## 8. Tips & gotchas
 
 - **First answer is slow** (model warm-up) — this is normal, not a bug.
 - **Don't run Tab 2/3 sweeps during a live demo** — they call the model hundreds of times and take minutes. Use Tab 1 (instant) and the pre-made plots in `artifacts/`.

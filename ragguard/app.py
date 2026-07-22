@@ -72,6 +72,7 @@ class DemoController:
         self.canaries = list(canaries)
         self.benign = list(benign)
         self.results = results or {}
+        self._run_log = ""            # latest Run-tab progress; survives tab switches / reloads
 
     # ---- construction ----
     @classmethod
@@ -232,7 +233,7 @@ class DemoController:
         r2 = self.run_query("", attack_id, [])
         beats.append(f"**2. It breaks** — attack {attack_id}, no defenses\n\n> {r2.answer}\n\n"
                      f"{'⚠️ canary leaked' if r2.canary_leak else ''} (success={r2.attack_success})")
-        best = ["D2", "D3", "D4"]
+        best = ["D4", "D5"]
         r3 = self.run_query("", attack_id, best)
         beats.append(f"**3. We fix it** — enable {'+'.join(best)}\n\n> {r3.answer}\n\n"
                      f"(blocked by {', '.join(r3.fired_defenses) or 'defense'})")
@@ -284,7 +285,7 @@ def build_app(controller: DemoController):
     with gr.Blocks(title="RAGGuard — Trustworthy AI Demo", theme=theme, css=_css) as demo:
         gr.Markdown("# 🛡️ RAGGuard\n"
                     "*Trustworthy-AI red-team / blue-team demo — customer-service RAG chatbot*")
-        gr.HTML(controller.header_stats_html())
+        hdr = gr.HTML(controller.header_stats_html())
         _prec = "4-bit" if config.LOAD_IN_4BIT else "bf16"
         gr.Markdown(f"<span style='font-size:12px;color:#64748b'>Runtime (auto-detected): "
                     f"{config.GEN_MODEL} · {_prec} · {config.device()} · batch {config.BATCH_SIZE}</span>")
@@ -297,7 +298,7 @@ def build_app(controller: DemoController):
                     "1. **It works** — Attack = *None*, no defenses ticked → **Ask**. A normal, helpful answer.\n"
                     "2. **It breaks** — Attack = *A1* or *A5*, still no defenses → **Ask**. Badge turns "
                     "🔴 *ATTACK SUCCEEDED* (the bot obeys the attacker or leaks a secret).\n"
-                    "3. **We fix it** — tick **D2 + D3** (and **D6**) → **Ask** again. Badge turns 🟢 *BLOCKED*.\n"
+                    "3. **We fix it** — tick **D4 + D5** → **Ask** again. Badge turns 🟢 *BLOCKED*.\n"
                     "4. **It still works** — Attack = *None*, defenses still on → **Ask**. Still a good answer.\n\n"
                     "**Reading the output:** 🔵 benign · 🔴 attack succeeded · 🟢 blocked · ⚠️ canary leaked. "
                     "Retrieved docs are tagged 📄 public · 🔒 internal/canary · ☠️ injected. "
@@ -339,10 +340,10 @@ def build_app(controller: DemoController):
 
         with gr.Tab("2 · Attack Lab"):
             gr.Markdown("**Top:** the last full run. **Bottom:** run your own quick sweep live.")
-            gr.Dataframe(value=controller.cached_attack_rows(),
+            cached_tbl = gr.Dataframe(value=controller.cached_attack_rows(),
                          headers=["ID", "Attack", "Type", "Undefended ASR", "Full-stack ASR"],
                          label="Per-attack ASR (undefended → full defence stack)")
-            gr.Image(value=controller.artifact("asr_undefended.png"),
+            asr_img = gr.Image(value=controller.artifact("asr_undefended.png"),
                      label="ASR per attack (undefended)", height=300)
             gr.Markdown("#### ↻ Run a quick attack sweep (live)")
             n_slider = gr.Slider(2, 20, value=5, step=1, label="Cases per attack")
@@ -357,13 +358,13 @@ def build_app(controller: DemoController):
             run_atk.click(_on_atk, n_slider, [atk_plot, atk_table])
 
         with gr.Tab("3 · Defense Lab"):
-            gr.Markdown(controller.best_summary_md())
+            best_md = gr.Markdown(controller.best_summary_md())
             with gr.Row():
-                gr.Image(value=controller.artifact("heatmap.png"),
+                heat_img = gr.Image(value=controller.artifact("heatmap.png"),
                          label="Full run — attack × defence ASR", height=320)
-                gr.Image(value=controller.artifact("pareto.png"),
+                pareto_img = gr.Image(value=controller.artifact("pareto.png"),
                          label="Full run — utility vs robustness (Pareto)", height=320)
-            gr.Image(value=controller.artifact("adaptive_curve.png"),
+            adap_img = gr.Image(value=controller.artifact("adaptive_curve.png"),
                      label="Full run — adaptive attacker ASR by round", height=280)
             gr.Markdown("#### ↻ Evaluate any defence stack (live)")
             gr.Markdown("Tick defences and press **Evaluate** — a quick attack + benign "
@@ -380,6 +381,45 @@ def build_app(controller: DemoController):
             gr.Markdown("**NIST AI RMF scorecard** — before vs after defences "
                         "(🔴 gap · 🟡 partial · 🟢 managed).")
             gov = gr.Markdown(controller.governance_markdown())
+
+        with gr.Tab("5 · Run pipeline") as run_tab:
+            gr.Markdown(
+                "Run the whole red-team → blue-team pipeline and populate every tab. "
+                "Results + resumable checkpoints save to `artifacts/` — or to **Google Drive** "
+                "if it's mounted, so they survive a reload. **Full** resumes if the runtime "
+                "disconnects; just press Run again.")
+            with gr.Row():
+                profile = gr.Radio(["Quick (~minutes)", "Full (~hours, resumable)"],
+                                   value="Quick (~minutes)", label="Profile", scale=3)
+                run_btn = gr.Button("▶ Run full pipeline", variant="primary", scale=1)
+            reload_btn = gr.Button("🔄 Reload saved results", size="sm")
+            run_log = gr.Markdown("_Idle — pick a profile and press ▶ Run full pipeline._")
+
+        # ---- Run tab refreshes every results-backed panel on completion ----
+        from . import fullrun
+        results_out = [hdr, cached_tbl, asr_img, best_md, heat_img, pareto_img, adap_img, gov]
+
+        def _refresh_all():
+            controller.results = fullrun.load_saved_results() or controller.results
+            return (controller.header_stats_html(), controller.cached_attack_rows(),
+                    controller.artifact("asr_undefended.png"), controller.best_summary_md(),
+                    controller.artifact("heatmap.png"), controller.artifact("pareto.png"),
+                    controller.artifact("adaptive_curve.png"), controller.governance_markdown())
+
+        def _run_gen(profile_label):
+            prof = "quick" if str(profile_label).startswith("Quick") else "full"
+            lines: list[str] = []
+            for msg in fullrun.run(prof, controller=controller):
+                lines.append(msg)
+                controller._run_log = "```\n" + "\n".join(lines[-40:]) + "\n```"
+                yield controller._run_log          # stream; also kept server-side
+
+        _idle = "_Idle — pick a profile and press ▶ Run full pipeline._"
+        run_btn.click(_run_gen, profile, run_log).then(_refresh_all, None, results_out)
+        reload_btn.click(_refresh_all, None, results_out)
+        # Re-show the in-progress (or last) run whenever the Run tab is re-opened —
+        # the run itself keeps going server-side regardless of which tab is visible.
+        run_tab.select(lambda: controller._run_log or _idle, None, run_log)
 
     return demo
 
@@ -410,4 +450,10 @@ def launch(share: bool = True, offline: bool | None = None, seed: int = config.S
         attacks = build_all_attacks(canary_docs=canaries)
         defenses = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
         controller = DemoController(pipe, attacks, judge, defenses, canaries, benign)
-    return build_app(controller).launch(share=share, **kw)
+    # Load the last full run's results (from artifacts/ or a mounted Drive) so the
+    # Attack / Defense / Governance tabs show real numbers right away.
+    from . import fullrun
+    controller.results = fullrun.load_saved_results() or controller.results
+    app = build_app(controller)
+    app.queue()                       # enable streaming for the Run tab's progress log
+    return app.launch(share=share, **kw)
