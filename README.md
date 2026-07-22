@@ -3,7 +3,8 @@
 Trustworthy AI mini-project. We build a deliberately-vulnerable customer-support RAG
 chatbot, **attack** it with an agentic suite, **defend** it, and measure the
 accuracy–robustness tradeoff. See [`MINI_PROJECT_PLAN.md`](./MINI_PROJECT_PLAN.md) for
-the full plan, rubric mapping, and threat model.
+the full plan, rubric mapping, and threat model. Change history is in
+[`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Victim system
 
