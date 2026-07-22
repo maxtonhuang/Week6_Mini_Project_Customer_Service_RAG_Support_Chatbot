@@ -4,10 +4,14 @@
 > during the autonomous hardening pass (teammate PRs + the security-review TODO list).
 > Nothing here is set in stone — flag anything you disagree with.
 
-**Date:** 2026-07-23 · **Driver:** Claude Code (autonomous, user away) · **Constraint:** the real
-FULL run (Qwen3-8B on GPU) could not be executed here, so all code was validated with the **offline
-test-doubles**; the committed `artifacts/results.json` (A1–A6 / D1–D6 numbers) is **left unchanged**.
-Re-run `run_full.py` (or the UI "Run pipeline" tab) on a GPU to get report numbers for the new items.
+**Date:** 2026-07-23 · **Driver:** Claude Code (autonomous). **Update — the full run was executed**
+on the **RTX 5090** (bf16, batch 4); `artifacts/results.json` now holds **real Qwen3-8B numbers for all
+9 attacks × 9 defences**:
+- Undefended **31% → full-stack (D1–D9) 0%**; adaptive **0% across 6 rounds**.
+- New attacks (undefended): **A8 30%**, **A9 100%**, **A10 0%** — all **→ 0%** under the full stack.
+- The D1–D6 Pareto search now selects **D2+D5** (robustness **96%**, utility **0.44**, FRR **5%**) — it
+  can't cover the output-side IP-fingerprint attack **A9**, which the targeted **D7–D9** close, so the
+  full **D1–D9** stack reaches **0%**. (Old A1–A6-only headline was 25% / best D4+D5 / 0%.)
 
 ---
 

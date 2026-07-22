@@ -6,8 +6,10 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 ---
 
 ## [branch feat/hardening-a8a10-d7d9] — 2026-07-23 · Coverage expansion & hardening (PR)
-> On a feature branch / PR (not `main`) — the new items are validated **offline**; their real
-> Qwen3-8B numbers need a GPU re-run (`run_full.py`). See `HARDENING_DECISIONS.md`.
+> On a feature branch / PR (not `main`). **Full run executed on RTX 5090** — real numbers in
+> `artifacts/results.json`: undefended **31% → full-stack (D1–D9) 0%**; new attacks **A8 30 / A9 100 /
+> A10 0%** (all → 0%); best D1–D6 stack **D2+D5** (96% robustness, 5% FRR), with **D7–D9** closing the
+> IP-fingerprint attack A9 for the full-stack 0%. See `HARDENING_DECISIONS.md`.
 ### Added
 - **Attacks A8/A9/A10**: A8 membership inference, A9 fingerprint/IP-ownership probe (melted in from
   teammate **PR #1**), A10 paraphrased system-prompt extraction. New `AttackGoal`s + judge branches.

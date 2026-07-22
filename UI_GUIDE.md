@@ -127,7 +127,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 ### The recommended 60-second demo (the 4 beats)
 1. **It works.** Attack = `None`, no defenses → click **Ask**. You get a helpful answer.
 2. **It breaks.** Attack = `A1` (or `A5`), no defenses → **Ask**. Badge turns 🔴 — the bot obeys the attacker / leaks a secret.
-3. **We fix it.** Tick **D4 + D5** (the reported best stack) → **Ask** again. Badge turns 🟢 — same attack, now blocked.
+3. **We fix it.** Tick **D4 + D5** → **Ask** again. Badge turns 🟢 — same attack, now blocked. (For an **A9** fingerprint attack, use **D9** instead; for **A8** membership, **D7**.)
 4. **It still works.** Attack = `None`, defenses still on → **Ask**. Normal answer — defenses didn't break usefulness.
 
 > Prefer the **▶ Run demo script** button for presentations — it plays all four beats for you, so there's no mis-clicking on stage.
@@ -162,9 +162,9 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ![RAGGuard Defense Lab tab — full-run heatmap, Pareto and adaptive plots on top, live evaluate below](artifacts/ui_v3_defenselab.png)
 
-*Top half = the **full-run results**: the **best stack (D4+D5)** with its robustness/utility/FRR, the attack×defence **heatmap**, the utility-vs-robustness **Pareto** plot, and the **adaptive attacker** curve (flat along the bottom = the stack holds). Bottom half = **evaluate any stack live**.*
+*Top half = the **full-run results**: the **best D1–D6 stack (D2+D5)** with its robustness/utility/FRR, the attack×defence **heatmap**, the utility-vs-robustness **Pareto** plot, and the **adaptive attacker** curve (flat along the bottom = the stack holds). Bottom half = **evaluate any stack live**.*
 
-- The full search over all 64 defence combinations is precomputed and shown at the top — the **best stack is D4+D5** (robustness 100%, utility 0.45, FRR 0%; overall ASR 25% → 0%).
+- The full search over all 64 **D1–D6** combinations is precomputed at the top — the **best D1–D6 stack is D2+D5** (robustness 96%, utility 0.44, FRR 5%). The new IP/membership attacks (A8–A10) need the targeted **D7–D9** (outside the 64-stack search), so the **full D1–D9 stack** takes overall ASR **31% → 0%**.
 - To test a specific combination: tick defences under **Defences to evaluate** and click **Evaluate stack** — it runs a quick attack + benign check on that exact stack.
 
 > The live **Evaluate stack** call runs the model, so give it a moment. For a demo, the precomputed heatmap/Pareto at the top are instant.
