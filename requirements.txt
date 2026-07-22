@@ -10,7 +10,7 @@ accelerate>=0.33
 # optional — only for 4-bit quantization on GPUs < 16 GB (set RAGGUARD_4BIT=1):
 bitsandbytes>=0.43 ; platform_system != "Darwin"
 optuna>=3.6
-gradio>=4.44
+gradio>=4.44,<5   # pin to the 4.x line: Gradio 5/6 move theme/css to launch() and change the share tunnel, breaking this app
 numpy>=1.26
 pandas>=2.0
 scikit-learn>=1.3
