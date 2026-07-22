@@ -81,9 +81,13 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 3. Tab 1 — Live Demo (start here)
 
-![RAGGuard Live Demo tab — controls on the left, result on the right](artifacts/ui_v2_livedemo.png)
+![RAGGuard Live Demo tab — controls on the left, result on the right](artifacts/ui_v3_livedemo.png)
 
 *The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A6`) → **③ Enable defences** (tick any of D1–D6). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
+
+![RAGGuard in dark mode — the header status chips stay readable in both themes](artifacts/ui_v3_livedemo_dark.png)
+
+*The UI is **theme-aware** — here in dark mode. The four header chips (Model / Undefended ASR / Defended ASR / Best stack) stay readable in both light and dark themes.*
 
 ### The controls (left side)
 - **Customer question** — type any support question (e.g. *"How long do I have to return an item?"*).
@@ -126,7 +130,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 4. Tab 2 — Attack Lab
 
-![RAGGuard Attack Lab tab — full-run table and chart on top, live sweep controls below](artifacts/ui_v2_attacklab.png)
+![RAGGuard Attack Lab tab — full-run table and chart on top, live sweep controls below](artifacts/ui_v3_attacklab.png)
 
 *Top half = the **last full run** (per-attack ASR table + bar chart; A1 is highest at 88%, A4 is 0%). Bottom half = **run your own quick sweep live**: set **Cases per attack** with the slider, click **Run attack sweep**, and the results fill the **Live ASR** panel.*
 
@@ -140,7 +144,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 5. Tab 3 — Defense Lab
 
-![RAGGuard Defense Lab tab — full-run heatmap, Pareto and adaptive plots on top, live evaluate below](artifacts/ui_v2_defenselab.png)
+![RAGGuard Defense Lab tab — full-run heatmap, Pareto and adaptive plots on top, live evaluate below](artifacts/ui_v3_defenselab.png)
 
 *Top half = the **full-run results**: the **best stack (D4+D5)** with its robustness/utility/FRR, the attack×defence **heatmap**, the utility-vs-robustness **Pareto** plot, and the **adaptive attacker** curve (flat along the bottom = the stack holds). Bottom half = **evaluate any stack live**.*
 
@@ -153,7 +157,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 6. Tab 4 — Governance
 
-![RAGGuard Governance tab — NIST AI RMF scorecard, baseline vs defended](artifacts/ui_v2_governance.png)
+![RAGGuard Governance tab — NIST AI RMF scorecard, baseline vs defended](artifacts/ui_v3_governance.png)
 
 *The **NIST AI RMF scorecard** — how the system rates on Map / Measure / Manage. **Baseline (undefended, 4/18)** on top is mostly 🔴 gaps; **Defended (17/18)** below is mostly 🟢 managed, each row with its evidence. This is the "why it matters to a stakeholder" view.*
 
@@ -162,6 +166,10 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 ## 7. Tab 5 — Run pipeline (one button)
 
 This runs the **whole** red-team → blue-team pipeline and fills in every other tab — no notebook cell needed.
+
+![RAGGuard Run pipeline tab — profile selector, Run button, and live progress log](artifacts/ui_v3_run.png)
+
+*The **Run pipeline** tab: pick **Quick** or **Full**, press **▶ Run full pipeline**, and watch the live log; the Attack/Defense/Governance tabs refresh when it finishes.*
 
 - Pick a **Profile**:
   - **Quick (~minutes)** — reduced sample sizes; great for a demo and enough to populate all tabs.

@@ -109,6 +109,10 @@ degrades in speed rather than crashing. Override any choice with the env vars be
 
 **Run everything from the UI:** the **5 · Run pipeline** tab has a one-click **▶ Run full pipeline** button with a **Quick** (~minutes) or **Full** (~hours, resumable) profile; a live log streams each phase, and when it finishes the Attack/Defense/Governance tabs refresh automatically. The run continues if you switch tabs (it re-shows when you come back), and it reuses the already-loaded model (no VRAM doubling). On Colab, set `USE_DRIVE = True` (the optional Drive cell in the notebook) to persist results + the model cache to Google Drive so they survive a reload — the UI auto-loads the last saved results on startup.
 
+![RAGGuard Run pipeline tab — Quick/Full profile selector and a one-click run button](artifacts/ui_v3_run.png)
+
+*The UI is **theme-aware** (light + dark). See [`UI_GUIDE.md`](./UI_GUIDE.md) for per-tab screenshots including a dark-mode view.*
+
 ### Offline logic tests (no network, no heavy deps)
 ```
 python run_tests.py            # run every test with stdlib only

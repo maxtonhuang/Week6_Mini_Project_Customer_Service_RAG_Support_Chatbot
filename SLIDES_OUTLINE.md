@@ -101,6 +101,7 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 3. **We fix it** — tick **D4 + D5** → 🟢 *BLOCKED*.
 4. **It still works** — re-ask the benign question, defences on → still correct.
 - Optionally flash **Tab 2 (named ASR table)** and **Tab 3 (Pareto)** for 5 seconds each.
+- *(The UI also has a **Tab 5 · Run pipeline** one-click button — pre-run it to populate results; don't run it live, as even Quick takes minutes.)*
 - ✍️ Rehearse to hit 2.5 min. One person drives, one narrates.
 
 ### Slide 11 — Takeaways  ·  ~25s
@@ -131,5 +132,7 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 - [ ] Export to PDF/PPTX for submission.
 
 <!-- Figures to drop in (all in artifacts/): asr_undefended.png, adaptive_curve.png,
-heatmap.png, pareto.png, ui_v2_livedemo_attack.png, ui_v2_attacklab.png, ui_v2_governance.png,
-governance.md (for the scorecard tables). Delete these comments before exporting. -->
+heatmap.png, pareto.png, ui_v3_livedemo.png, ui_v2_livedemo_attack.png (attack-succeeded state),
+ui_v3_attacklab.png, ui_v3_defenselab.png, ui_v3_governance.png, ui_v3_run.png
+(+ ui_v3_livedemo_dark.png for a dark-mode view), governance.md (for the scorecard tables).
+Delete these comments before exporting. -->

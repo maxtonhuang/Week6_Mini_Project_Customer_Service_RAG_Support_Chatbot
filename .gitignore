@@ -8,6 +8,7 @@ venv/
 
 # --- Regenerated runtime artefacts (heavy / machine-specific — regenerate with run_full.py) ---
 artifacts/full/
+artifacts/full_fast/
 artifacts/cache/
 artifacts/gen_cache.json
 *.faiss

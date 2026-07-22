@@ -277,7 +277,9 @@ _[Pre-filled — convert to your required citation style; cite only what you act
 APPENDIX (optional — REMEMBER these pages likely count toward the 10-page limit;
 keep only what strengthens the argument, push the rest to the notebooks/repo).
   • Selected attack/defence transcripts (from artifacts/results.json → transcripts, or the notebook)
-  • UI screenshots: artifacts/ui_v2_livedemo_attack.png, ui_v2_attacklab.png, ui_v2_governance.png
+  • UI screenshots: artifacts/ui_v3_livedemo.png, ui_v2_livedemo_attack.png (attack-succeeded state),
+    ui_v3_attacklab.png, ui_v3_defenselab.png, ui_v3_governance.png, ui_v3_run.png
+    (+ ui_v3_livedemo_dark.png for the dark-mode view)
   • Reproduction: run_full.py + 00_MAIN.ipynb (repo)
 
 NOT in this report — separate C4 deliverables:
