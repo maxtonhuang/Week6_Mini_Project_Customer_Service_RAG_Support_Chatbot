@@ -51,20 +51,43 @@ control, rate-limiting, semantic leak) while staying tractable and testable offl
 ## 5. Deliberately deferred → **future work / report limitations** (documented, not built)
 
 The review's remaining items are recorded as scoped future work (and make a strong report "limitations"
-section). Not implemented this pass, with the reason:
+section). Each row below is **why** it was deferred this pass — hand this table to the team.
 
-- **Evasion:** perplexity/GCG-suffix filtering, paraphrase-and-compare, multi-sample self-consistency, translation/confusable normalisation beyond the current homoglyph set.
-- **Poisoning:** ingestion-time quarantine/provenance allow-listing at index build, embedding-space outlier detection, two-embedder retrieval cross-checking, semantic (vs imperative) instruction detection.
-- **Extraction/watermarking:** output text watermarking (Kirchenbauer green/red-list), retrieval-index canaries, moving policy values out of the prompt into a tool/policy lookup, sampling-vs-extraction tradeoff note.
-- **Inversion/MIA:** never expose raw `Doc.score` externally (bucket it), access-control the FAISS index/vectors (embedding inversion), DP noise on external analytics, hashing PII in synthetic canaries.
-- **LLM security:** multi-turn/compounding injection, input-length/DoS caps, tool-use authorization (OWASP LLM08).
-- **LLM safety:** entailment-based groundedness (upgrade D5 from lexical), toxicity/moderation, human-escalation routing, citation-required answers, paraphrase-consistency + bias-slice on the benign eval.
+| # | Deferred item | Category | Why deferred (concrete reason) |
+|---|---|---|---|
+| 1 | Perplexity / GCG-suffix filtering | Evasion | Needs a scoring LM to compute perplexity; D6 already covers *representation* evasion (homoglyph/leet/base64), this is a different (token-optimization) threat — separate model + eval. |
+| 2 | Paraphrase-and-compare defence | Evasion | Extra victim call per query (2× cost) + a semantic-equality check; measurable latency/utility hit that needs its own tuning. |
+| 3 | Multi-sample self-consistency voting | Evasion | k× generation cost per query; only meaningful with a real sampling model and a bigger eval budget. |
+| 4 | Translation-wrap + Unicode-confusable normalisation | Evasion | Needs a translation model + a full confusables table; broadens D6 well beyond the current homoglyph set. |
+| 5 | Ingestion-time quarantine / gating | Poisoning | Requires an index-build/ingestion pipeline; our poison enters at query time (`injected_docs`), so there's no ingestion stage to gate yet. |
+| 6 | Provenance allow-listing at index build | Poisoning | Same — needs a real ingestion stage that vets `Doc.source`; D3 only content-matches at query time. |
+| 7 | Semantic instruction-detection (vs imperative-verb) | Poisoning | Needs a small classifier / LLM-judge to score "does this chunk read like an instruction"; heavier than the current regex. |
+| 8 | Embedding-space outlier detection | Poisoning | Needs index-build-time statistics over the vector space; no index-build hook today. |
+| 9 | Two-embedder retrieval cross-checking | Poisoning | Requires a second embedder + index (2× memory/latency) and an agreement rule. |
+| 10 | Output text watermarking (Kirchenbauer green/red-list) | Extraction/IP | Needs logits-level access + a detector; a research feature on its own, orthogonal to the attack/defence sweep. |
+| 11 | True embedding-based prompt-leak detection | Extraction/IP | D9 uses n-gram overlap (fast, offline-safe); the embedding upgrade needs a loaded encoder in the post-generation hook — deferred like D5's "optional NLI" note. |
+| 12 | Move policy values into a tool/policy-lookup | Extraction/IP | Architectural change to the victim (remove secrets from the prompt entirely) — biggest design shift on the list. |
+| 13 | Retrieval-*index*-level canaries | Extraction/IP | A9 fingerprints at query time; index-level canaries need index-build instrumentation + an external "is this our index?" probe. |
+| 14 | Sampling-vs-extraction tradeoff note | Extraction/IP | This is a *report discussion* point (we use `do_sample=False` for reproducible ASR), not code. |
+| 15 | Bucket/quantize `Doc.score` externally | Inversion/MIA | Cheap, but the score isn't exposed on any API surface today, so there's nothing to bucket yet (defence for a not-yet-existing endpoint). |
+| 16 | Access-control the FAISS index / raw vectors | Inversion/MIA | Deployment/infra control (protect the index artefact), not a pipeline hook; dense embeddings are invertible (Song & Raghunathan 2020). |
+| 17 | Cheap yes/no MIA self-test + hash PII in canaries | Inversion/MIA | A8 covers the *attack*; the self-test/defence + PII-hashing are additive and lower-priority than the D7 fix. |
+| 18 | DP noise on external analytics | Inversion/MIA | Only relevant once usage stats are reported externally — no such surface exists yet. |
+| 19 | Multi-turn / compounding injection | LLM security | The pipeline is single-turn (`answer(query)`); modelling conversation state is a structural change to the victim + eval. |
+| 20 | Input-length cap / DoS limits | LLM security | Deployment control; easy to add but not exercised by the current single-shot ASR harness. |
+| 21 | Tool-use authorization (OWASP LLM08) | LLM security | Moot until the bot has tools — no agency surface to authorise yet. |
+| 22 | Entailment (NLI) groundedness upgrade for D5 | LLM safety | Needs an NLI model in the post-generation hook; D5's token-overlap is the documented placeholder. |
+| 23 | Toxicity / moderation classifier | LLM safety | Needs a moderation model; out of scope for an injection/extraction-focused threat model. |
+| 24 | Human-escalation routing | LLM safety | Deployment workflow (ticketing/human-in-the-loop), not a model defence. |
+| 25 | Citation-required answers | LLM safety | Prompt/format change + a citation checker; a nice D5-strengthener, additive. |
+| 26 | Paraphrase-consistency + bias/fairness slice on benign eval | LLM safety | Extra eval harnesses (3× benign asks; demographic slices) — evaluation work, not a defence. |
 
-**Rationale for the cut line:** the built items are the ones that (a) close a *concrete* hole (D7),
-(b) add a *new attack category* with a deterministic judge (A8/A9/A10), or (c) are cheap config/logging
-hygiene. The deferred items mostly need extra models (NLI, toxicity, watermark detector), external state
-(rate infra, multi-turn sessions), or a larger architectural change — higher cost, better as scoped
-report contributions than half-built code.
+**Rationale for the cut line:** the built items each (a) close a *concrete* hole (D7), (b) add a *new
+attack category* with a deterministic judge (A8/A9/A10 + D8/D9), or (c) are cheap config/logging hygiene
+(revision pinning, redaction). Almost every deferred item needs one of: an **extra model** (NLI,
+toxicity, perplexity/watermark, 2nd embedder), **external/session state** (multi-turn, rate infra,
+analytics), an **index-build/ingestion stage** we don't have yet, or a **larger architectural change** —
+so they're higher-cost and land better as scoped report "future work" than as half-built code.
 
 ## 6. Process decision
 
