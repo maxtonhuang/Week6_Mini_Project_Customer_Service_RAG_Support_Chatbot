@@ -5,6 +5,16 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [b484635] — 2026-07-22 · One-click Colab (self-bootstrapping notebooks)
+### Added
+- **Idempotent Colab bootstrap cell** as the first code cell of `01_DEMO.ipynb` and `00_MAIN.ipynb`:
+  on Colab it `git clone`s the (public) repo into the VM and `pip install`s `requirements.txt`, then
+  adds the repo to `sys.path`. Uses portable paths only (`pathlib.Path.cwd()`, `/content/…`) — no
+  machine-specific paths. Safe to re-run: detects an existing clone (in cwd or `/content/…`) and skips.
+### Changed
+- Colab instructions in `README.md` and `UI_GUIDE.md` simplified to **Open from GitHub → set GPU → Run all**
+  (the manual `git clone` / `pip install` steps are now handled by the notebook).
+
 ## [8bfb987] — 2026-07-22 · UI screenshots in the guide
 ### Added
 - Per-tab **UI screenshots with click-through captions** in `UI_GUIDE.md` (Live Demo controls +
