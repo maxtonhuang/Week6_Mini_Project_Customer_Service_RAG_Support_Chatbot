@@ -52,25 +52,26 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
   starting point.
 
 ### Slide 5 — How we attack & measure  ·  ~40s  ·  [C2]
-- **SHOW:** the 6 attacks + A7 adaptive; the ASR definition; "rule-based judge".
-- **SAY:** 6 attack families (LLM / extraction / poisoning / evasion) + an **adaptive
-  agent**. **ASR** = fraction where a **deterministic judge** confirms the goal (canary
-  match, prompt-leak n-grams, injected-marker echo). Deterministic = reproducible &
-  defensible under Q&A.
+- **SHOW:** the 9 static attacks (6 core + 3 extended) + A7 adaptive; the ASR definition; "rule-based judge".
+- **SAY:** 9 static attacks across LLM / extraction / poisoning / evasion + **membership-inference &
+  IP-fingerprinting**, plus an **adaptive agent**. **ASR** = fraction where a **deterministic judge**
+  confirms the goal (canary match, prompt-leak n-grams, injected-marker echo, ownership phrase).
+  Deterministic = reproducible & defensible under Q&A.
 
 ### Slide 6 — Attack results ⭐  ·  ~60s  ·  [C2]
 - **SHOW:** `artifacts/asr_undefended.png` (per-attack ASR bar chart). Big.
-- **SAY (real numbers):** Overall undefended **ASR 25%**. **A1 direct injection 88%**,
-  A5 canary-extraction 24%, A2 jailbreak 26% — but **A4 system-prompt extraction 0%**
-  (the aligned 8B model resists it).
+- **SAY (real numbers, 9 attacks):** Overall undefended **ASR 31%**. **A1 direct injection 88%**,
+  **A9 fingerprint 100%** (a planted ownership phrase sitting in the retrieved doc), A8 membership 30%,
+  A2 26%, A5 24% — but **A4 and A10 = 0%** (the aligned 8B resists revealing *or paraphrasing* its own
+  system prompt).
 - **SAY:** The spread (not a saturated ~100%) is *because* we used a genuinely aligned
   model — attacks are non-trivial, so the defence story is meaningful.
 
 ### Slide 7 — Adaptive attacker  ·  ~30s  ·  [C2/C3]
 - **SHOW:** `artifacts/adaptive_curve.png`.
 - **SAY:** A PAIR-style loop with the **real Qwen3-8B as the mutator**, run **against our
-  best stack (D4+D5)**. Across **6 rounds it never breaks through — 0% ASR**. The defence
-  holds even under an adaptive LLM attacker (D4/D5 filter *after* generation).
+  best stack (D2+D5)**. Across **6 rounds it never breaks through — 0% ASR**. The defence
+  holds even under an adaptive LLM attacker (D2 guardrail + D5 groundedness).
 
 ### Slide 8 — Defences  ·  ~45s  ·  [C3]
 - **SHOW:** D1–D6 at 3 hook points (pre-retrieval / post-retrieval / post-generation).
@@ -81,12 +82,13 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 
 ### Slide 9 — What robustness costs ⭐⭐  ·  ~70s  ·  [C3]  *(your strongest slide)*
 - **SHOW:** `artifacts/heatmap.png` (attack×defence) **and** `artifacts/pareto.png`.
-- **SAY (real numbers):** We searched **all 64 defence stacks**, then **Optuna-tuned** the
-  winner's threshold (D5→0.18). Best = **D4 + D5** (output filter + groundedness):
-  **ASR 25% → 0%**, **false-refusal 0%**, utility preserved (0.45) on a **held-out benign
-  set disjoint from the KB**. A *minimal* two-defence stack neutralises every attack at
-  **no** cost to legitimate users.
-- **SAY:** That's the accuracy–robustness tradeoff, measured — not asserted.
+- **SAY (real numbers):** We searched **all 64 D1–D6 stacks**, then **Optuna-tuned** the winner
+  (D2→0.74, D5→0.26). The *minimal* **D2+D5** hits **96% robustness / 5% FRR** — but it **can't block the
+  IP-fingerprint attack A9** (no D1–D6 filter catches an output-side ownership leak). The **targeted
+  D7–D9** (outside the 64-stack search) close A8/A9/A10, so the **full stack → 0% ASR** (undefended
+  **31% → 0%**), utility 0.44 on a **held-out benign set disjoint from the KB**.
+- **SAY:** That's the accuracy–robustness tradeoff, measured — and it shows *why* the extended defences
+  were needed: the classic filters alone don't cover the new attack families.
 
 ### Slide 10 — Governance re-score + deployment  ·  ~30s  ·  [C3]
 - **SHOW:** baseline → defended scorecard (🔴→🟢) + risk→control mapping.
@@ -100,9 +102,9 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
   (2) added **membership inference (A8)** and **IP fingerprinting (A9**, from a teammate's prototype)
   and **paraphrased prompt extraction (A10)**; (3) added **rate-limiting (D8)** and a **semantic/
   fingerprint output filter (D9)**.
-- **⚠️ HONESTY:** these were validated **offline** (deterministic doubles: all three → 0% under the
-  full stack); their **real Qwen3-8B numbers are pending a GPU re-run** of `run_full.py`. Say this
-  plainly if asked — don't present offline numbers as the report figures.
+- **SAY (real numbers):** undefended **A8 30% · A9 100% · A10 0%** — all **→ 0%** under the full stack.
+  Crucially the D1–D6 Pareto search (D2+D5) **cannot** block A9; **D7–D9 are what close it** — so the
+  extended defences aren't optional, they cover a gap the classic filters miss.
 - ✍️ Optional: live-demo **A9 fingerprint** in Tab 1 (bot emits `OWNER-FP-…`, then D9 blocks it).
 
 ### 🎬 DEMO — live, on the Gradio UI  ·  **~2.5 min**  ·  [C2+C3+C4]
@@ -112,16 +114,16 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to avoid mis-clicks):
 1. **It works** — benign question, no defences → helpful answer.
 2. **It breaks** — pick **A1** (or A5), no defences → 🔴 *ATTACK SUCCEEDED* (bot obeys / canary leaks).
-3. **We fix it** — tick **D4 + D5** → 🟢 *BLOCKED*.
+3. **We fix it** — tick the defence that counters it (**D2+D5** for A1; **D4** for A5 canary; **D9** for A9 fingerprint) → 🟢 *BLOCKED*.
 4. **It still works** — re-ask the benign question, defences on → still correct.
 - Optionally flash **Tab 2 (named ASR table)** and **Tab 3 (Pareto)** for 5 seconds each.
 - *(The UI also has a **Tab 5 · Run pipeline** one-click button — pre-run it to populate results; don't run it live, as even Quick takes minutes.)*
 - ✍️ Rehearse to hit 2.5 min. One person drives, one narrates.
 
 ### Slide 11 — Takeaways  ·  ~25s
-- **SAY:** (1) RAG bots leak because untrusted text is trusted; (2) a stronger victim
-  gives realistic numbers (25%, not 100%); (3) a **minimal** stack (D4+D5) → **0% ASR at
-  0% false-refusals**; (4) governance moved red→green.
+- **SAY:** (1) RAG bots leak because untrusted text is trusted; (2) a stronger victim gives realistic
+  numbers (**31%**, not 100%); (3) the minimal D1–D6 stack (**D2+D5**, 96%) misses the new IP/MIA
+  attacks — the **full D1–D9 stack → 0% ASR**; (4) governance moved red→green.
 - ✍️ one forward-looking line (LLM-driven attacker, larger model, real PII controls).
 
 ### Slide 12 — Q&A / backup  ·  (holds during 5-min Q&A)
@@ -133,7 +135,8 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 ## Anticipated Q&A — prep answers (✍️ refine)
 - **"Why is A4 0% but A1 88%?"** → A4 asks the model to reveal its own instructions — Qwen3-8B is aligned against that; A1 injects a concrete instruction the model follows. Model-capability finding.
 - **"Isn't 8B too small / why not GPT-4?"** → We need a *self-hostable, reproducible, attackable* victim with real alignment; the 8B runs on a single GPU (auto-scaling to available VRAM) and gives non-saturated ASR. Bigger = future work.
-- **"How do you know defences don't just refuse everything?"** → We measure **false-refusal rate on 150 benign queries** — the best stack is **0%**.
+- **"How do you know defences don't just refuse everything?"** → We measure **false-refusal rate on 150 held-out benign queries** — the minimal D2+D5 stack costs only **~5% FRR**, reported explicitly as the accuracy price.
+- **"Why add D7–D9 if D2+D5 is the 'best' stack?"** → The 64-stack search only ranges over D1–D6, and **no D1–D6 filter blocks the IP-fingerprint attack A9** (an output-side leak). D7–D9 target the new families (access-control, rate-limit, semantic/fingerprint) — the **full stack** is what reaches 0%.
 - **"Is the judge reliable?"** → Deterministic rules (canary string, n-gram overlap) — reproducible; canaries make extraction exact. (LLM-judge cross-check available.)
 - **"Adaptive attacker flat — is that a failure?"** → It's an honest negative result; heuristic mutations didn't beat the refusals. We report it, we don't hide it.
 - **"Real-world fix?"** → Segregate internal docs behind access-controlled retrieval; don't co-mingle with public FAQs; monitor canary hits.
