@@ -33,11 +33,20 @@ def use_drive(hf_cache: bool = True) -> str | None:
 
     if hf_cache:
         cache = DRIVE_ROOT / "hf_cache"
-        cache.mkdir(parents=True, exist_ok=True)
-        # HF_HOME covers hub + transformers caches; set both for older/newer libs.
+        (cache / "hub").mkdir(parents=True, exist_ok=True)
+        # HF_HOME is the base; HF derives the hub cache as HF_HOME/hub. Set both explicitly so
+        # older/newer libs agree. This MUST run before transformers is imported — it does, because
+        # the launch cell imports the model only afterwards, and `import ragguard` stays lightweight.
         os.environ["HF_HOME"] = str(cache)
-        os.environ.setdefault("HF_HUB_CACHE", str(cache / "hub"))
-        print(f"[drive] model cache -> {cache}")
+        os.environ["HF_HUB_CACHE"] = str(cache / "hub")
+        # Tell you up front whether THIS session will download (~16 GB) or reuse the Drive cache.
+        from . import config
+        slug = "models--" + config.GEN_MODEL.replace("/", "--")
+        if (cache / "hub" / slug).is_dir():
+            print(f"[drive] HF cache -> {cache}  |  {config.GEN_MODEL} already cached — no download")
+        else:
+            print(f"[drive] HF cache -> {cache}  |  {config.GEN_MODEL} NOT cached yet — "
+                  f"first run downloads ~16 GB to Drive (subsequent sessions reuse it)")
 
     (DRIVE_ROOT / "ragguard").mkdir(parents=True, exist_ok=True)
     print(f"[drive] results/checkpoints -> {DRIVE_ROOT / 'ragguard'}")
