@@ -5,6 +5,16 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [8bfb987] — 2026-07-22 · UI screenshots in the guide
+### Added
+- Per-tab **UI screenshots with click-through captions** in `UI_GUIDE.md` (Live Demo controls +
+  attack-succeeded state, Attack Lab, Defense Lab, Governance) and a hero screenshot in `README.md`,
+  so a new user can see where to click for each function.
+### Fixed
+- Corrected two stale references so the guide matches the app: **best stack D2+D3 → D4+D5** (Live
+  Demo beat 3 and Defense Lab note), and button label **"Run attack suite" → "Run attack sweep"**;
+  refreshed the Defense Lab section to the v2 **Evaluate stack** flow.
+
 ## [8a82c1e] — 2026-07-22 · Fresh-clone setup docs
 ### Added
 - **First-time setup** section in `UI_GUIDE.md` (§1) and `README.md` — clone → venv → deps →
