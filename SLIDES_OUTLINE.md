@@ -74,8 +74,10 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 
 ### Slide 8 — Defences  ·  ~45s  ·  [C3]
 - **SHOW:** D1–D6 at 3 hook points (pre-retrieval / post-retrieval / post-generation).
-- **SAY:** Six defences across three hook points. Ordering matters — **D6 de-obfuscation
+- **SAY:** Six core defences across three hook points. Ordering matters — **D6 de-obfuscation
   runs before D2 the classifier**, or the classifier never sees the decoded payload.
+- **SAY (one line):** A hardening pass adds **D7–D9** (access-control, rate-limit, semantic/fingerprint
+  filter) for the extended attacks — see the "extended coverage" slide.
 
 ### Slide 9 — What robustness costs ⭐⭐  ·  ~70s  ·  [C3]  *(your strongest slide)*
 - **SHOW:** `artifacts/heatmap.png` (attack×defence) **and** `artifacts/pareto.png`.
@@ -90,6 +92,18 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 - **SHOW:** baseline → defended scorecard (🔴→🟢) + risk→control mapping.
 - **SAY:** Post-defence, RMF Measure/Manage move to green. For real deployment we'd add
   index segregation for internal docs, canary-hit alerting, and periodic re-testing.
+
+### Slide 10b — Extended coverage (hardening pass)  ·  ~30s  ·  [C1/C3]  *(optional / backup)*
+- **SHOW:** the extended attack→defence map: A8/A9/A10 → D7/D8/D9.
+- **SAY:** Beyond the core suite we (1) **fixed a real access-control hole** — internal docs were
+  never filtered by visibility; **D7** now drops them at retrieval (prevention, not post-hoc scanning);
+  (2) added **membership inference (A8)** and **IP fingerprinting (A9**, from a teammate's prototype)
+  and **paraphrased prompt extraction (A10)**; (3) added **rate-limiting (D8)** and a **semantic/
+  fingerprint output filter (D9)**.
+- **⚠️ HONESTY:** these were validated **offline** (deterministic doubles: all three → 0% under the
+  full stack); their **real Qwen3-8B numbers are pending a GPU re-run** of `run_full.py`. Say this
+  plainly if asked — don't present offline numbers as the report figures.
+- ✍️ Optional: live-demo **A9 fingerprint** in Tab 1 (bot emits `OWNER-FP-…`, then D9 blocks it).
 
 ### 🎬 DEMO — live, on the Gradio UI  ·  **~2.5 min**  ·  [C2+C3+C4]
 > Launch `serve_app.py` (or `01_DEMO.ipynb`) BEFORE the talk so the model is warm.
@@ -134,5 +148,6 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 <!-- Figures to drop in (all in artifacts/): asr_undefended.png, adaptive_curve.png,
 heatmap.png, pareto.png, ui_v3_livedemo.png, ui_v2_livedemo_attack.png (attack-succeeded state),
 ui_v3_attacklab.png, ui_v3_defenselab.png, ui_v3_governance.png, ui_v3_run.png
-(+ ui_v3_livedemo_dark.png for a dark-mode view), governance.md (for the scorecard tables).
+(+ ui_v3_livedemo_dark.png for a dark-mode view; ui_v3_livedemo_a9.png / ui_v3_livedemo_a9_blocked.png
+for the A9 fingerprint demo), governance.md (for the scorecard tables).
 Delete these comments before exporting. -->
