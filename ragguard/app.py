@@ -413,12 +413,44 @@ def build_app(controller: DemoController):
                     controller.artifact("adaptive_curve.png"), controller.governance_markdown())
 
         def _run_gen(profile_label):
+            # Run the pipeline in a background thread and stream its progress. A heartbeat
+            # with an elapsed timer is emitted every few seconds so a long phase (e.g. the
+            # 64-stack search) never looks frozen; the run continues across tab switches.
+            import threading, queue, time
             prof = "quick" if str(profile_label).startswith("Quick") else "full"
+            q: "queue.Queue" = queue.Queue()
+            _DONE = object()
+
+            def _worker():
+                try:
+                    for msg in fullrun.run(prof, controller=controller):
+                        q.put(msg)
+                except Exception as e:                       # surface errors in the log
+                    q.put(f"ERROR: {e}")
+                finally:
+                    q.put(_DONE)
+
+            threading.Thread(target=_worker, daemon=True).start()
             lines: list[str] = []
-            for msg in fullrun.run(prof, controller=controller):
-                lines.append(msg)
-                controller._run_log = "```\n" + "\n".join(lines[-40:]) + "\n```"
-                yield controller._run_log          # stream; also kept server-side
+            start = time.time()
+
+            def _render(extra=""):
+                body = "\n".join(lines[-60:] + ([extra] if extra else []))
+                controller._run_log = "```\n" + body + "\n```"   # also kept server-side
+                return controller._run_log
+
+            while True:
+                try:
+                    item = q.get(timeout=3)
+                except queue.Empty:
+                    item = None
+                if item is _DONE:
+                    yield _render()
+                    return
+                if item is not None:
+                    lines.append(item)
+                el = int(time.time() - start)
+                yield _render(f"[ still running -- elapsed {el // 60}m{el % 60:02d}s ]")
 
         _idle = "_Idle — pick a profile and press ▶ Run full pipeline._"
         run_btn.click(_run_gen, profile, run_log).then(_refresh_all, None, results_out)
@@ -436,30 +468,60 @@ def _has_heavy_deps() -> bool:
                                                      "sentence_transformers", "faiss"))
 
 
-def launch(share: bool = True, offline: bool | None = None, seed: int = config.SEED, **kw):
-    """Build and launch the app. offline=None auto-detects (real models if available)."""
+def launch(share: bool | None = None, offline: bool | None = None,
+           seed: int = config.SEED, **kw):
+    """Build and launch the app. offline=None auto-detects (real models if available).
+
+    On a GPU this **auto-configures the model for the available VRAM** (bf16 / 4-bit /
+    smaller model) via ``autotune`` — the same path ``serve_app.py`` uses — so an 8B model
+    fits a 16 GB Colab GPU instead of spilling to CPU/disk. Progress is printed at each step.
+
+    ``share`` defaults to env ``RAGGUARD_SHARE`` (on). The public ``gradio.live`` link can be
+    slow/flaky on Colab; pass ``share=False`` for a reliable inline view in the cell instead.
+    """
+    import os
+
+    def _log(m):
+        print(f"[RAGGuard] {m}", flush=True)
+
     if offline is None:
         offline = not _has_heavy_deps()
     if offline:
+        _log("offline mode — building the lightweight demo (no GPU model).")
         controller = DemoController.offline(seed=seed)
     else:
-        from . import corpus, prompts, rag
+        from . import autotune, corpus, prompts, rag
         from . import canary as canary_mod
         from .attacks import build_all_attacks
         from .defenses import build_all_defenses
         from .judge import RuleJudge
+        _log("auto-detecting GPU / VRAM…")
+        autotune.apply()   # bf16 / 4-bit / smaller model to fit the GPU (+ installs bitsandbytes if needed)
+        _log(f"config: model={config.GEN_MODEL} · {'4-bit' if config.LOAD_IN_4BIT else 'bf16'} · "
+             f"{config.device()} · batch {config.BATCH_SIZE}")
+        _log("loading corpus + knowledge base…")
         docs, benign = corpus.build_knowledge_base(seed=seed)
         canaries = [d for d in docs if d.is_canary()]
+        _log("loading the model + embedder — the slow step (~16 GB; the first run downloads it "
+             "unless the Drive cache is on)…")
         pipe = rag.build_pipeline(offline=False)
         judge = RuleJudge(canary_tokens=canary_mod.canary_tokens(canaries),
                           system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
         attacks = build_all_attacks(canary_docs=canaries)
         defenses = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
         controller = DemoController(pipe, attacks, judge, defenses, canaries, benign)
+        _log("model ready.")
     # Load the last full run's results (from artifacts/ or a mounted Drive) so the
     # Attack / Defense / Governance tabs show real numbers right away.
     from . import fullrun
     controller.results = fullrun.load_saved_results() or controller.results
+    import gradio as gr
+    gr.close_all()   # release any server left by a previous run so re-running this cell is safe
     app = build_app(controller)
-    app.queue()                       # enable streaming for the Run tab's progress log
-    return app.launch(share=share, **kw)
+    app.queue()      # enable streaming for the Run tab's progress log
+    if share is None:
+        share = os.environ.get("RAGGUARD_SHARE", "1").lower() not in ("0", "false", "no")
+    _log("starting the UI… " + ("creating the public gradio.live link — this can take ~30–60 s "
+                                 "on Colab. If it stalls, re-run with share=False for an inline view."
+                                 if share else "rendering inline in this cell (no public link)."))
+    return app.launch(share=share, show_error=True, **kw)

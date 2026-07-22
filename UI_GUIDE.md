@@ -174,7 +174,7 @@ This runs the **whole** red-team → blue-team pipeline and fills in every other
 - Pick a **Profile**:
   - **Quick (~minutes)** — reduced sample sizes; great for a demo and enough to populate all tabs.
   - **Full (~hours, resumable)** — the paper-grade numbers. If the Colab runtime disconnects mid-run, just press **▶ Run full pipeline** again — it resumes from the last completed phase.
-- Press **▶ Run full pipeline**. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots).
+- Press **▶ Run full pipeline**. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots), with a **live elapsed timer** that ticks every few seconds so it never looks frozen — even during the long 64-stack search.
 - When it finishes, the **Attack Lab**, **Defense Lab** and **Governance** tabs refresh automatically with the new numbers and plots.
 - **🔄 Reload saved results** re-reads the last saved run — handy when you reopen the UI and want the previous results back.
 
@@ -192,6 +192,8 @@ A Colab VM is wiped when the runtime recycles, so results and the ~16 GB model d
 
 ## 8. Tips & gotchas
 
+- **On Colab, the launch cell prints `[RAGGuard]` progress lines** (auto-config → loading model → starting UI), so you can see it's working. The model load (~16 GB) is the slow step — turn on the Drive cell (`USE_DRIVE = True`) so it isn't re-downloaded every session. The launch **auto-detects your GPU** and runs the 8B model in 4-bit on a 16 GB card (so it fits instead of spilling to disk).
+- **If the public `gradio.live` link stalls** for more than ~1 min, re-run the launch cell with **`launch(share=False)`** — that renders the UI inline in the cell (reliable on Colab, no external tunnel). Re-running is safe now (it releases the previous server first).
 - **First answer is slow** (model warm-up) — this is normal, not a bug.
 - **Don't run Tab 2/3 sweeps during a live demo** — they call the model hundreds of times and take minutes. Use Tab 1 (instant) and the pre-made plots in `artifacts/`.
 - **Attacks are probabilistic against a real model** — a strong model (Qwen3-8B) legitimately refuses some attacks. If one doesn't succeed, try another (A1 and A5 are the most reliable for a demo).

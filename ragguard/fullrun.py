@@ -125,21 +125,25 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         yield stamp(f"ready | KB {len(docs)} docs ({len(canaries)} canaries), benign {len(benign)}")
 
     # ---------------- phases ----------------
+    yield stamp(f"-> undefended attack suite ({len(attacks)} attacks x N={C.N_PER_ATTACK})...")
     raw, hit = checkpoint("undefended",
         lambda: recs_to(orchestrator.run_suite(pipe, attacks, judge, defenses=None, n=C.N_PER_ATTACK)))
     undef = recs_from(raw); _save()
     yield stamp(f"undefended ASR {metrics.asr(undef):.0%}" + (" (resumed)" if hit else ""))
 
+    yield stamp("-> full-stack attack suite (all defences on)...")
     raw, hit = checkpoint("fullstack",
         lambda: recs_to(orchestrator.run_suite(pipe, attacks, judge, defenses=defenses, n=C.N_PER_ATTACK)))
     full = recs_from(raw); _save()
     yield stamp(f"full-stack ASR {metrics.asr(full):.0%}" + (" (resumed)" if hit else ""))
 
+    yield stamp(f"-> attack x defence matrix (N={MATRIX_N})...")
     raw, hit = checkpoint("matrix",
         lambda: recs_to(orchestrator.attack_defense_matrix(pipe, attacks, judge, defenses, n=MATRIX_N)))
     matrix = recs_from(raw); _save()
     yield stamp("attack x defence matrix done" + (" (resumed)" if hit else ""))
 
+    yield stamp("-> defence-stack search (screening all 64 stacks -- the long phase)...")
     search, hit = checkpoint("search",
         lambda: orchestrator.two_stage_search(pipe, attacks, judge, defenses, benign,
                                               screen_n=C.SCREEN_N, screen_benign=C.SCREEN_BENIGN,
@@ -161,6 +165,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
                                   thresholds=dict(params))
         return [x for x in alld if x.id in best_ids]
     if _space:
+        yield stamp("-> Optuna threshold tuning (15 trials)...")
         try:
             tuned, hit = checkpoint("tuned", lambda: orchestrator.tune_thresholds(
                 pipe, attacks, judge, _factory, benign, _space, n_trials=15, benign_k=C.SCREEN_BENIGN))
@@ -185,6 +190,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         return {"vs_stack": best["stack"],
                 "llm": {"records": recs_to(recs_llm), "curve": adaptive_asr_curve(recs_llm)},
                 "heuristic": {"records": recs_to(recs_h), "curve": adaptive_asr_curve(recs_h)}}
+    yield stamp(f"-> adaptive attacker ({C.ADAPTIVE_ROUNDS} rounds vs best stack)...")
     adaptive, hit = checkpoint("adaptive", _adaptive)
     _save()
     curve = adaptive["llm"]["curve"]

@@ -25,12 +25,14 @@ class QwenLLM:
     """Chat generation via a Qwen instruct model (transformers). Deterministic.
     For Qwen3 models, 'thinking' mode is disabled so the support bot answers directly."""
 
-    def __init__(self, model_id: str = config.GEN_MODEL, device: str | None = None,
+    def __init__(self, model_id: str | None = None, device: str | None = None,
                  max_new_tokens: int = 256, seed: int = config.SEED,
                  load_in_4bit: bool | None = None):
         import torch  # lazy
         from transformers import AutoModelForCausalLM, AutoTokenizer  # lazy
 
+        if model_id is None:
+            model_id = config.GEN_MODEL      # read at call time so autotune's model choice applies
         self.model_id = model_id
         self.max_new_tokens = max_new_tokens
         torch.manual_seed(seed)
