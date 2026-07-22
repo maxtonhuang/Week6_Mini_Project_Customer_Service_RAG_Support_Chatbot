@@ -68,12 +68,11 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128   # GPU onl
 ```
 **Local — macOS / Linux:** same, but `python3.12 -m venv .venv` then `source .venv/bin/activate`.
 
-**Colab — no venv** (set the runtime to a GPU first):
-```
-!git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
-%cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
-!pip install -r requirements.txt
-```
+**Colab — nothing to install by hand.** In Colab: **File → Open notebook → GitHub**, paste this repo's
+URL, and open **`01_DEMO.ipynb`** (UI) or **`00_MAIN.ipynb`** (full pipeline). Set **Runtime → Change
+runtime type → GPU**, then **Runtime → Run all**. The notebook's first cell clones the repo into the VM
+and installs the dependencies automatically — and it's safe to re-run (it detects an existing clone and
+skips it).
 
 ### Run the notebook (real models)
 1. Open `00_MAIN.ipynb` (on Colab set the runtime to a GPU).
@@ -84,7 +83,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128   # GPU onl
 
 ### Launch the Gradio UI
 - **Local:** `.venv\Scripts\python serve_app.py` (Windows) or `./.venv/bin/python serve_app.py` (macOS/Linux) → open **http://127.0.0.1:7860**.
-- **Colab:** open `01_DEMO.ipynb`, run all cells, click the `…gradio.live` link it prints.
+- **Colab:** open `01_DEMO.ipynb` from the **GitHub** tab, set the runtime to GPU, **Run all** (the first cell self-clones + installs), then click the `…gradio.live` link it prints.
 
 The results/plots are committed, so the Governance tab and charts show real numbers immediately; the
 **Live Demo / Attack Lab / Defense Lab** tabs run the real pipeline live — no `run_full.py` needed first.

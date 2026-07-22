@@ -35,13 +35,11 @@ pip install -r requirements.txt
 # GPU only: pip install torch --index-url https://download.pytorch.org/whl/cu128
 ```
 
-**Colab — no venv needed** (Colab already has Python + most of torch). First set the runtime to a GPU
-(**Runtime → Change runtime type → GPU**, e.g. T4/L4), then in the first cell:
-```
-!git clone https://github.com/maxtonhuang/Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot.git
-%cd Week6_Mini_Project_Customer_Service_RAG_Support_Chatbot
-!pip install -r requirements.txt
-```
+**Colab — nothing to install by hand.** Open the notebook straight from GitHub: **File → Open notebook →
+GitHub tab**, paste this repo's URL, and open **`01_DEMO.ipynb`**. Set **Runtime → Change runtime type →
+GPU** (e.g. T4/L4), then **Runtime → Run all**. The notebook's first cell **clones the repo into the Colab
+VM and installs the dependencies for you** — and it's safe to re-run (it detects an existing clone and
+skips it). When it finishes, click the public `…gradio.live` link it prints.
 
 > You do **not** need to run `run_full.py` or create any files first. The results and plots
 > (`artifacts/results.json`, the charts, the Governance scorecard) are already committed, and the
