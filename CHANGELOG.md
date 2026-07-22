@@ -5,6 +5,12 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [38d179a] — 2026-07-22 · Prune unused screenshots
+### Removed
+- Deleted **17 unused UI screenshots** (pre-v1, plain `ui_*`, and the superseded v2 set, plus an
+  unembedded `ui_v3_run_dark.png`). Kept the referenced v3 set + `ui_v2_livedemo_attack.png`; the
+  app's plot PNGs are untouched. Recoverable from git history if needed.
+
 ## [89198dd] — 2026-07-22 · Dark-mode UX fix + refreshed screenshots
 ### Fixed
 - **Header status chips unreadable in dark mode.** The four chips (Model / Undefended ASR /
