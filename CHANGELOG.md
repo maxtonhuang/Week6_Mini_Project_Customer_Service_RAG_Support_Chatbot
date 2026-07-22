@@ -5,6 +5,20 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [89198dd] — 2026-07-22 · Dark-mode UX fix + refreshed screenshots
+### Fixed
+- **Header status chips unreadable in dark mode.** The four chips (Model / Undefended ASR /
+  Defended ASR / Best stack) used light-only theme tokens/hex. Each now has explicit **light
+  and dark** colours via Gradio's `.dark` class (all ≥4.5:1 contrast) — reviewed with the
+  UI/UX Pro Max skill (token-driven theming, dark-mode contrast rules).
+### Added
+- **v3 UI screenshots** — all five tabs in light mode (including the new **Run pipeline** tab)
+  plus a **dark-mode** view showing the chip fix; wired into `UI_GUIDE.md` and `README.md`.
+### Changed
+- `REPORT_SKELETON.md` / `SLIDES_OUTLINE.md`: verified every number against `results.json`
+  (unchanged), refreshed screenshot references to v3, and noted the one-click Run tab.
+- `.gitignore`: ignore `artifacts/full_fast/` (quick-profile checkpoints).
+
 ## [d743fb0] — 2026-07-22 · One-click full run in the UI + Drive persistence
 ### Added
 - **`ragguard/fullrun.py`** — the full pipeline as a **resumable generator** (yields progress,
