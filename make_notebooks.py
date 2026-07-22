@@ -59,14 +59,20 @@ except ImportError:
 print("repo:", REPO)
 """),
     code("""
-# --- Runtime dials ---
+# --- Auto-configure for THIS machine's GPU: picks bf16 / 4-bit / smaller model by VRAM
+#     and pip-installs bitsandbytes only if a 4-bit path is chosen ---
+from ragguard import autotune
+autotune.apply()                 # sets GEN_MODEL / LOAD_IN_4BIT / BATCH_SIZE automatically
+
+# --- Runtime dials (override autotune below if you want) ---
 FAST = True                      # True = quick validation; False = full report run
 import ragguard.config as C
 C.N_PER_ATTACK   = 8  if FAST else 50
 C.ADAPTIVE_ROUNDS= 3  if FAST else 6
 C.SCREEN_N       = 6  if FAST else 15
+# C.BATCH_SIZE = 2       # force a smaller batch if you still hit CUDA OOM
 SEED = C.SEED
-print(f"FAST={FAST}  N_PER_ATTACK={C.N_PER_ATTACK}  device={C.device()}")
+print(f"FAST={FAST}  model={C.GEN_MODEL}  4bit={C.LOAD_IN_4BIT}  batch={C.BATCH_SIZE}  device={C.device()}")
 """),
     md("## §1 — System build & threat model (Criterion 1)"),
     code("""
@@ -81,8 +87,10 @@ print(f"Benign eval set: {len(benign)} held-out Q&A")
 print("Example canary token:", canaries[0].canary)
 """),
     code("""
-# Build the victim RAG pipeline (real models on Colab)
-llm = rag.QwenLLM()
+# Build the victim RAG pipeline. Wrap the model in CachedLLM so the 64-stack search in
+# §3 reuses generations instead of recomputing them (turns a ~hour into minutes).
+from ragguard.cache import CachedLLM
+llm = CachedLLM(rag.QwenLLM(max_new_tokens=C.EVAL_MAX_NEW_TOKENS))
 retriever = rag.EmbeddingRetriever(docs)
 pipe = rag.RagPipeline(retriever, llm)
 

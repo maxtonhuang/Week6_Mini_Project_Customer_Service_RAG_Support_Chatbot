@@ -10,7 +10,9 @@ from ragguard.attacks import build_all_attacks
 from ragguard.defenses import build_all_defenses
 from ragguard.judge import RuleJudge
 
-print("building real pipeline (Qwen3-8B)...", flush=True)
+from ragguard import autotune
+autotune.apply()   # detect VRAM -> bf16 / 4-bit / smaller model (+ install bitsandbytes if needed)
+print("building real pipeline...", flush=True)
 docs, benign = corpus.build_knowledge_base()
 canaries = [d for d in docs if d.is_canary()]
 llm = rag.QwenLLM()

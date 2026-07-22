@@ -26,18 +26,33 @@ class QwenLLM:
     For Qwen3 models, 'thinking' mode is disabled so the support bot answers directly."""
 
     def __init__(self, model_id: str = config.GEN_MODEL, device: str | None = None,
-                 max_new_tokens: int = 256, seed: int = config.SEED):
+                 max_new_tokens: int = 256, seed: int = config.SEED,
+                 load_in_4bit: bool | None = None):
         import torch  # lazy
         from transformers import AutoModelForCausalLM, AutoTokenizer  # lazy
 
         self.model_id = model_id
-        self.device = device or config.device()
         self.max_new_tokens = max_new_tokens
         torch.manual_seed(seed)
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_id, torch_dtype="auto"
-        ).to(self.device)
+
+        if load_in_4bit is None:
+            load_in_4bit = config.LOAD_IN_4BIT
+        if load_in_4bit:
+            # 4-bit NF4: an 8B model fits in ~6-8 GB -> runs on a 12 GB GPU.
+            # Requires bitsandbytes. Slightly lower quality; a bit slower per token.
+            from transformers import BitsAndBytesConfig  # lazy
+            qcfg = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                      bnb_4bit_compute_dtype=torch.bfloat16,
+                                      bnb_4bit_use_double_quant=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id, quantization_config=qcfg, device_map={"": 0},
+                torch_dtype=torch.bfloat16)
+            self.device = next(self.model.parameters()).device
+        else:
+            self.device = device or config.device()
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_id, torch_dtype="auto").to(self.device)
         self.model.eval()
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -65,18 +80,22 @@ class QwenLLM:
         return re.sub(r"<think>.*?</think>", "", ans, flags=re.DOTALL).strip()
 
     def generate_batch(self, batch: list[list[dict]], **kw) -> list[str]:
-        """True padded-batch generation (left-padding) in chunks, for throughput."""
+        """Padded-batch generation (left-padding) in chunks, for throughput.
+
+        OOM-resilient: if a chunk runs out of GPU memory it is retried at half the
+        batch size (down to 1 = sequential), so it degrades in speed rather than
+        crashing on smaller GPUs.
+        """
         import re  # lazy stdlib
         import torch  # lazy
         if not batch:
             return []
-        bs = int(kw.get("batch_size", getattr(config, "BATCH_SIZE", 8)))
+        bs = int(kw.get("batch_size", getattr(config, "BATCH_SIZE", 4)))
         mnt = kw.get("max_new_tokens", self.max_new_tokens)
         tmpl_kw = {"enable_thinking": False} if "qwen3" in self.model_id.lower() else {}
         self.tokenizer.padding_side = "left"   # required for decoder-only batch generation
-        results: list[str] = []
-        for start in range(0, len(batch), bs):
-            chunk = batch[start:start + bs]
+
+        def _run(chunk: list[list[dict]]) -> list[str]:
             texts = [self.tokenizer.apply_chat_template(
                 m, tokenize=False, add_generation_prompt=True, **tmpl_kw) for m in chunk]
             inputs = self.tokenizer(texts, return_tensors="pt", padding=True).to(self.device)
@@ -86,9 +105,25 @@ class QwenLLM:
                     pad_token_id=self.tokenizer.pad_token_id,
                 )
             in_len = inputs["input_ids"].shape[1]
+            outs = []
             for row in out:
                 text = self.tokenizer.decode(row[in_len:], skip_special_tokens=True).strip()
-                results.append(re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip())
+                outs.append(re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip())
+            return outs
+
+        results: list[str] = []
+        i = 0
+        cur_bs = max(1, bs)
+        while i < len(batch):
+            chunk = batch[i:i + cur_bs]
+            try:
+                results.extend(_run(chunk))
+                i += cur_bs
+            except torch.cuda.OutOfMemoryError:
+                torch.cuda.empty_cache()
+                if cur_bs == 1:
+                    raise                      # a single prompt won't fit — genuinely OOM
+                cur_bs = max(1, cur_bs // 2)   # back off and retry this chunk smaller
         return results
 
 

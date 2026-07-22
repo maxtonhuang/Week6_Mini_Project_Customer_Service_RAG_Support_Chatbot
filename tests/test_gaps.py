@@ -106,3 +106,22 @@ def test_tune_thresholds_runs_optuna():
     assert "best_params" in res and "D5" in res["best_params"]
     assert "tuned_metrics" in res and 0.0 <= res["tuned_metrics"]["asr"] <= 1.0
     assert res["n_trials"] == 5
+
+
+# ---------------- VRAM auto-tuning ----------------
+
+def test_autotune_tiers():
+    from ragguard import autotune
+    assert autotune.recommend(vram=32)["load_in_4bit"] is False   # 5090 -> bf16
+    assert autotune.recommend(vram=24)["load_in_4bit"] is False   # L4  -> bf16
+    p12 = autotune.recommend(vram=12)                              # 5070 -> 4-bit
+    assert p12["load_in_4bit"] is True and "bitsandbytes" in p12["needs"]
+    p8 = autotune.recommend(vram=8)                                # 8 GB -> smaller model
+    assert p8["load_in_4bit"] is False and p8["model_id"] == autotune.SMALL_MODEL
+    assert autotune.recommend(vram=4)["load_in_4bit"] is True
+    assert autotune.recommend(vram=None)["device"] in ("cpu", "cuda")
+
+
+def test_autotune_ensure_installed_skips_present():
+    from ragguard import autotune
+    assert autotune.ensure_installed(["json"], verbose=False) == []   # stdlib already present

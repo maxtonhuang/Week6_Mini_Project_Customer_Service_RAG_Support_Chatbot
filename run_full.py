@@ -22,6 +22,9 @@ from ragguard.attacks import build_all_attacks, AdaptiveAttacker, HeuristicAttac
 from ragguard.attacks.base import load_hf_prompts
 from ragguard.defenses import build_all_defenses
 from ragguard.schemas import RunRecord
+from ragguard import autotune
+
+autotune.apply()   # detect VRAM -> bf16 / 4-bit / smaller model (+ install bitsandbytes if needed)
 
 ART = C.artifact_dir()
 CK = ART / ("full_fast" if C.FAST_MODE else "full")

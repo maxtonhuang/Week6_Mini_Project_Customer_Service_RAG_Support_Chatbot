@@ -61,7 +61,9 @@ CONFIRM_TOP = int(os.environ.get("RAGGUARD_CONFIRM_TOP", "5"))
 # Benign-eval sizing: small during the cheap screen, full only for finalists.
 SCREEN_BENIGN = int(os.environ.get("RAGGUARD_SCREEN_BENIGN", "8" if FAST_MODE else "20"))
 # Batched generation + capped eval length (speed; ASR/utility unaffected in practice).
-BATCH_SIZE = int(os.environ.get("RAGGUARD_BATCH", "8"))
+BATCH_SIZE = int(os.environ.get("RAGGUARD_BATCH", "4"))   # lower to 2/1 for small GPUs
+# 4-bit weights (needs bitsandbytes) so the 8B fits a <16 GB GPU (e.g. 12 GB RTX 5070).
+LOAD_IN_4BIT = _env_flag("RAGGUARD_4BIT", default=False)
 EVAL_MAX_NEW_TOKENS = int(os.environ.get("RAGGUARD_MAXNEW", "128"))
 
 

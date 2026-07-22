@@ -7,6 +7,8 @@ sentence-transformers>=3.0
 faiss-cpu>=1.8
 datasets>=2.20
 accelerate>=0.33
+# optional — only for 4-bit quantization on GPUs < 16 GB (set RAGGUARD_4BIT=1):
+bitsandbytes>=0.43 ; platform_system != "Darwin"
 optuna>=3.6
 gradio>=4.44
 numpy>=1.26
