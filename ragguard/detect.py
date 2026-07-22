@@ -9,8 +9,24 @@ import re
 
 from .config import CANARY_RE  # re-exported for convenience
 
-__all__ = ["CANARY_RE", "is_refusal", "find_pii", "DEFAULT_REFUSAL_MARKERS",
+__all__ = ["CANARY_RE", "is_refusal", "find_pii", "redact", "DEFAULT_REFUSAL_MARKERS",
            "EMAIL_RE", "PHONE_RE", "CC_RE"]
+
+_FP_RE = re.compile(r"OWNER-FP-[A-Z0-9]{4}-[A-Z0-9-]+")
+
+
+def redact(text: str, extra: list[str] | None = None) -> str:
+    """Scrub canary tokens, ownership-fingerprint phrases and any ``extra`` secret strings
+    from text BEFORE it is written to a log/artefact — so persisted records never carry
+    plaintext secrets (log-redaction, per the security review)."""
+    if not text:
+        return text
+    out = CANARY_RE.sub("[REDACTED-CANARY]", text)
+    out = _FP_RE.sub("[REDACTED-FP]", out)
+    for s in (extra or []):
+        if s:
+            out = out.replace(s, "[REDACTED]")
+    return out
 
 DEFAULT_REFUSAL_MARKERS = [
     "i can't", "i cannot", "i can not", "i'm unable", "i am unable",

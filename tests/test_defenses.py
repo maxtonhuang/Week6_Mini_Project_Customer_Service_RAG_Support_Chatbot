@@ -18,7 +18,7 @@ from ragguard.defenses import (
 def test_build_all_defenses_order():
     ds = build_all_defenses()
     assert [d.id for d in ds] == DEFENSE_ORDER
-    assert len(ds) == 6
+    assert len(ds) == 9
 
 
 def test_d6_normalizes_obfuscated_query():

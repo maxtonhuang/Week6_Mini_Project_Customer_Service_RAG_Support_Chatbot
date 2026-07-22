@@ -96,6 +96,12 @@ class Defense:
         """Inspect/redact/block the generated answer. Default: allow unchanged."""
         return Decision(text=answer, defense_id=self.id)
 
+    def reset(self) -> None:
+        """Reset any per-session state (e.g. D8's rate counter). Default: no-op.
+        The pipeline calls this per case when ``reset_session=True`` so stateful defenses
+        don't leak state across independent attack cases in the batched sweep."""
+        return None
+
     # --- Prompt-construction hooks (used by D1 spotlighting) ---
     def transform_system_prompt(self, system_prompt: str) -> str:
         """Optionally harden/replace the system prompt. Default: unchanged.

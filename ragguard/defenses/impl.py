@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import dataclasses
 
-from .. import config, detect, metrics, textnorm
+from .. import config, detect, fingerprint, metrics, textnorm
 from ..interfaces import Defense
+from ..judge import ngram_overlap
 from ..schemas import Action, Decision, Doc
 from . import base
 
@@ -63,7 +64,8 @@ class D2InputGuardrail(Defense):
             return self._clf
         try:
             from transformers import pipeline  # lazy heavy import
-            self._clf = pipeline("text-classification", model=config.GUARD_MODEL, truncation=True)
+            self._clf = pipeline("text-classification", model=config.GUARD_MODEL,
+                                 revision=config.GUARD_REVISION, truncation=True)
         except Exception:
             self._model_failed = True
             self._clf = None
@@ -180,3 +182,79 @@ class D6Normalizer(Defense):
             return Decision(action=Action.REWRITE, text=normalised,
                             reason="normalised obfuscated input", defense_id=self.id)
         return Decision(action=Action.ALLOW, text=query, defense_id=self.id)
+
+
+# ------------------------------------------------------------------ D7
+class D7VisibilityFilter(Defense):
+    """Access control: drop INTERNAL (agent-only) documents at the post-retrieval hook so
+    they never reach the prompt for a public/anonymous user. Fixes the structural gap where
+    ``Doc.visibility`` was defined but never enforced — the only prior guard was D4 scanning
+    the final answer for canary strings after the fact. This is prevention, not detection."""
+    id = "D7"
+    name = "Visibility access-control"
+
+    def __init__(self, role: str = "public"):
+        # 'public'/'anonymous' see only PUBLIC docs; 'agent' bypasses (authenticated staff).
+        self.role = role
+
+    def post_retrieval(self, query: str, docs: list[Doc]) -> list[Doc]:
+        if self.role == "agent":
+            return docs
+        return [d for d in docs if not d.is_internal()]
+
+
+# ------------------------------------------------------------------ D8
+class D8RateLimit(Defense):
+    """Per-session query-rate limit / budget. Blocks once a session exceeds ``budget`` calls,
+    making high-volume probing (e.g. A7's mutate-retry loop, or scripted extraction) expensive.
+
+    Session semantics: the pipeline resets stateful defences per case in the batched ASR sweep
+    (``reset_session=True``), so single-shot cases never approach the budget and D8 does NOT
+    distort ASR/FRR. In the Live Demo and the adaptive loop the session persists
+    (``reset_session=False``), so repeated queries eventually trip the limit. Deployment control,
+    not part of the exhaustive Pareto stack search."""
+    id = "D8"
+    name = "Query-rate limit / budget"
+
+    def __init__(self, budget: int | None = None):
+        self.budget = int(budget if budget is not None else config.RATE_BUDGET)
+        self._count = 0
+
+    def reset(self) -> None:
+        self._count = 0
+
+    def pre_retrieval(self, query: str) -> Decision:
+        self._count += 1
+        if self._count > self.budget:
+            return Decision(action=Action.BLOCK,
+                            reason=f"rate limit exceeded ({self._count} > {self.budget} queries/session)",
+                            defense_id=self.id)
+        return Decision(action=Action.ALLOW, text=query, defense_id=self.id)
+
+
+# ------------------------------------------------------------------ D9
+class D9SemanticLeakFilter(Defense):
+    """Post-generation filter for leaks that D4's literal scan misses:
+      * an IP/ownership **fingerprint** phrase (``OWNER-FP-…``) in the answer  -> A9,
+      * a **paraphrased** system-prompt leak (n-gram overlap with the real secrets) -> A10.
+    Uses n-gram overlap by default (fast, offline-safe, matches the judge); embedding-cosine is a
+    scoped upgrade, same spirit as D5's optional-NLI note."""
+    id = "D9"
+    name = "Semantic leak & fingerprint filter"
+
+    def __init__(self, system_prompt_secrets: list[str] | None = None, threshold: float = 0.35):
+        self.secrets_text = " ".join(s for s in (system_prompt_secrets or []) if s)
+        self.threshold = threshold
+
+    def post_generation(self, query: str, answer: str, docs: list[Doc]) -> Decision:
+        ph = fingerprint.phrase_in(answer)
+        if ph:
+            return Decision(action=Action.BLOCK,
+                            reason=f"ownership/fingerprint phrase in output ({ph})", defense_id=self.id)
+        if self.secrets_text:
+            sim = ngram_overlap(self.secrets_text, answer, n=3)
+            if sim >= self.threshold:
+                return Decision(action=Action.BLOCK,
+                                reason=f"paraphrased system-prompt leak (overlap {sim:.2f})",
+                                defense_id=self.id)
+        return Decision(action=Action.ALLOW, text=answer, defense_id=self.id)

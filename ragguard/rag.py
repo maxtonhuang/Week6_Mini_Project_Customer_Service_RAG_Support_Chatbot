@@ -36,7 +36,8 @@ class QwenLLM:
         self.model_id = model_id
         self.max_new_tokens = max_new_tokens
         torch.manual_seed(seed)
-        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        rev = config.GEN_REVISION            # None = latest; pin a SHA for supply-chain integrity
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id, revision=rev)
 
         if load_in_4bit is None:
             load_in_4bit = config.LOAD_IN_4BIT
@@ -48,13 +49,13 @@ class QwenLLM:
                                       bnb_4bit_compute_dtype=torch.bfloat16,
                                       bnb_4bit_use_double_quant=True)
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, quantization_config=qcfg, device_map={"": 0},
+                model_id, revision=rev, quantization_config=qcfg, device_map={"": 0},
                 torch_dtype=torch.bfloat16)
             self.device = next(self.model.parameters()).device
         else:
             self.device = device or config.device()
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_id, torch_dtype="auto").to(self.device)
+                model_id, revision=rev, torch_dtype="auto").to(self.device)
         self.model.eval()
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -140,7 +141,8 @@ class EmbeddingRetriever:
 
         self.docs = list(docs)
         self.model_id = model_id
-        self.encoder = SentenceTransformer(model_id, device=device or config.device())
+        self.encoder = SentenceTransformer(model_id, device=device or config.device(),
+                                           revision=config.EMB_REVISION)
         emb = self.encoder.encode(
             [d.text for d in self.docs], convert_to_numpy=True,
             normalize_embeddings=True, show_progress_bar=False,
@@ -181,10 +183,18 @@ class RagPipeline:
         return [d for d in active if getattr(d, "id", "") == "D6"] + \
                [d for d in active if getattr(d, "id", "") != "D6"]
 
-    def _prepare(self, query: str, injected_docs, active: list[Defense]) -> dict:
+    def _prepare(self, query: str, injected_docs, active: list[Defense],
+                 reset_session: bool = True) -> dict:
         """Everything up to (but not including) the model call. Returns either
-        {"short": RagResponse} for a pre-retrieval block, or the state + messages."""
+        {"short": RagResponse} for a pre-retrieval block, or the state + messages.
+
+        ``reset_session`` resets per-session defense state (e.g. D8's rate counter) so each
+        case in the batched sweep is independent; pass False for a persistent session (Live
+        Demo / adaptive loop) where rate limiting should accumulate."""
         t0 = time.perf_counter()
+        if reset_session:
+            for d in active:
+                d.reset()
         original = query
         q = query
         fired: list[str] = []
@@ -265,21 +275,25 @@ class RagPipeline:
         )
 
     def answer(self, query: str, injected_docs: list[Doc] | None = None,
-               defenses: Sequence[Defense] | None = None) -> RagResponse:
+               defenses: Sequence[Defense] | None = None,
+               reset_session: bool = True) -> RagResponse:
         active = list(defenses) if defenses is not None else list(self.defenses)
-        prep = self._prepare(query, injected_docs, active)
+        prep = self._prepare(query, injected_docs, active, reset_session=reset_session)
         if "short" in prep:
             return prep["short"]
         ans = self.llm.generate(prep["messages"])
         return self._finalize(prep, ans, active)
 
     def answer_many(self, queries: list[str], injected_docs_list=None,
-                    defenses: Sequence[Defense] | None = None) -> list[RagResponse]:
+                    defenses: Sequence[Defense] | None = None,
+                    reset_session: bool = True) -> list[RagResponse]:
         """Batched equivalent of ``answer`` — same results, one batched model call for
-        all queries that reach generation. Order-preserving."""
+        all queries that reach generation. Order-preserving. ``reset_session`` resets
+        per-session defense state per case (True) so the batch doesn't accumulate rate state."""
         active = list(defenses) if defenses is not None else list(self.defenses)
         inj = injected_docs_list if injected_docs_list is not None else [None] * len(queries)
-        preps = [self._prepare(q, inj[i], active) for i, q in enumerate(queries)]
+        preps = [self._prepare(q, inj[i], active, reset_session=reset_session)
+                 for i, q in enumerate(queries)]
         gen_idx = [i for i, p in enumerate(preps) if "short" not in p]
         if gen_idx:
             outs = self.llm.generate_batch([preps[i]["messages"] for i in gen_idx])

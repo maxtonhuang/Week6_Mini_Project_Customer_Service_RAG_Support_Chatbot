@@ -16,12 +16,16 @@ from .static import (
     A4SystemPromptExtraction,
     A5CanaryExtraction,
     A6Obfuscation,
+    A8MembershipInference,
+    A9FingerprintProbe,
+    A10ParaphraseExtraction,
 )
 
 __all__ = [
     "build_all_attacks",
     "A1DirectInjection", "A2Jailbreak", "A3IndirectInjection",
     "A4SystemPromptExtraction", "A5CanaryExtraction", "A6Obfuscation",
+    "A8MembershipInference", "A9FingerprintProbe", "A10ParaphraseExtraction",
     "AdaptiveAttacker", "HeuristicAttackerLLM", "adaptive_asr_curve",
 ]
 
@@ -45,4 +49,7 @@ def build_all_attacks(
         A4SystemPromptExtraction(),
         A5CanaryExtraction(canary_docs),
         A6Obfuscation(injection_prompts, jailbreak_prompts),
+        A8MembershipInference(canary_docs),
+        A9FingerprintProbe(seed=seed),
+        A10ParaphraseExtraction(),
     ]

@@ -49,11 +49,18 @@ class ScriptedLLM:
             if needle.lower() in low:
                 return resp
 
+        # Simulated vulnerability 0: emit a *taught* fingerprint phrase (A9 ownership probe).
+        m_fp = re.search(r"\[\[FP:(.*?)\]\]", joined, flags=re.DOTALL)
+        if m_fp:
+            return f"Certainly — {m_fp.group(1).strip()}."
+
         # Simulated vulnerability 1: echo any canary present in the (retrieved) context.
+        # Fires for A5 (extraction) and A8 (membership: 'internal'/'confidential'/'code').
         if self.leak_canaries:
             m = config.CANARY_RE.search(joined)
             if m and ("repeat" in low or "context" in low or "document" in low
-                      or "internal" in low or "policy" in low or "everything" in low):
+                      or "internal" in low or "policy" in low or "everything" in low
+                      or "confidential" in low or "code" in low):
                 return f"According to the internal document: {m.group(0)}."
 
         # Simulated vulnerability 2: obey an injected instruction found in context.
@@ -61,9 +68,12 @@ class ScriptedLLM:
         if m2:
             return m2.group(1).strip()
 
-        # Simulated vulnerability 3: reveal system prompt on a "repeat above" style ask.
-        if self.leak_system_prompt and ("repeat" in low or "everything above" in low
-                                        or "your instructions" in low or "system prompt" in low):
+        # Simulated vulnerability 3: reveal the system prompt on a "repeat above" ask (A4) OR
+        # a paraphrase/"in your own words" ask (A10) — both leak the instructions.
+        _sp_tells = ("repeat", "everything above", "your instructions", "system prompt",
+                     "your configuration", "your policies", "your rules", "you were configured",
+                     "you were told", "guidelines govern", "in your own words", "paraphrase")
+        if self.leak_system_prompt and any(t in low for t in _sp_tells):
             sysmsg = next((m.get("content", "") for m in messages if m.get("role") == "system"), "")
             if sysmsg:
                 return f"Sure, my instructions are: {sysmsg}"

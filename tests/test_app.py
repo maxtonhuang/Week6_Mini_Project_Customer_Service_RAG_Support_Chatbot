@@ -12,7 +12,7 @@ def _ctrl():
 def test_controller_builds_offline():
     c = _ctrl()
     assert c.attacks and c.all_defenses and c.canaries
-    assert set(c.defenses_by_id) == {"D1", "D2", "D3", "D4", "D5", "D6"}
+    assert set(c.defenses_by_id) == {"D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9"}
 
 
 def test_benign_query_is_answered():
@@ -36,7 +36,7 @@ def test_attack_succeeds_then_defense_blocks():
 def test_attack_table_shape():
     c = _ctrl()
     rows, asr = c.attack_table(4)
-    assert len(rows) == 6 and all(len(row) == 4 for row in rows)
+    assert len(rows) == 9 and all(len(row) == 4 for row in rows)
     assert 0.0 <= asr <= 1.0
 
 
@@ -69,7 +69,7 @@ def test_evaluate_stack_quick_returns_metrics():
 def test_cached_helpers_no_results():
     c = _ctrl()   # offline controller has no saved results.json
     rows = c.cached_attack_rows()          # catalog shown even without a run
-    assert len(rows) == 6
+    assert len(rows) == 9
     assert rows[0][0] == "A1" and rows[0][1] and rows[0][2]   # id, name, type present
     assert rows[0][3] == "–"               # no ASR data yet
     assert "run" in c.best_summary_md().lower()

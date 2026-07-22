@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import csv
 
-from . import metrics
+from . import detect, metrics
 
 
 # ------------------------------ pure-text outputs ------------------------------
@@ -31,7 +31,9 @@ def records_to_csv(records, path) -> str:
         w = csv.DictWriter(fh, fieldnames=fields)
         w.writeheader()
         for r in records:
-            w.writerow({k: getattr(r, k) for k in fields})
+            row = {k: getattr(r, k) for k in fields}
+            row["reason"] = detect.redact(str(row.get("reason", "")))   # never persist secrets
+            w.writerow(row)
     return str(path)
 
 
