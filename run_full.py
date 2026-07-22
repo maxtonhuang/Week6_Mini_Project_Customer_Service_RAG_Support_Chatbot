@@ -75,19 +75,46 @@ search = checkpoint("search",
                                               confirm_top=C.CONFIRM_TOP))
 llm.save()
 best = search["best"]
+best_ids = [i for i in best["stack"].split("+") if i and i != "none"]
+best_defs = [d for d in defenses if d.id in best_ids]
 log(f"BEST [{best['stack']}] robustness={best['robustness']:.0%} "
     f"utility={best['utility']:.2f} frr={best['frr']:.0%} | cache {llm.stats()}")
 
+# --- Optuna: tune the continuous thresholds of the best stack ---
+_space = {}
+if "D2" in best_ids: _space["D2"] = (0.3, 0.9)          # injection-classifier cutoff
+if "D3" in best_ids: _space["D3_floor"] = (0.0, 0.5)    # retrieval similarity floor
+if "D5" in best_ids: _space["D5"] = (0.05, 0.4)         # groundedness threshold
+def _factory(params):
+    alld = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS, thresholds=dict(params))
+    return [d for d in alld if d.id in best_ids]
+if _space:
+    tuned = checkpoint("tuned", lambda: orchestrator.tune_thresholds(
+        pipe, attacks, judge, _factory, benign, _space, n_trials=15, benign_k=C.SCREEN_BENIGN))
+    log(f"Optuna tuned {best['stack']}: {tuned['best_params']} -> "
+        f"ASR {tuned['tuned_metrics']['asr']:.0%} FRR {tuned['tuned_metrics']['frr']:.0%}")
+else:
+    tuned = {"best_params": {}, "tuned_metrics": best,
+             "note": f"stack {best['stack']} has no continuous thresholds to tune"}
+    log(f"Optuna: {best['stack']} has no continuous thresholds")
+llm.save()
+
+# --- A7 adaptive attacker vs the BEST defence stack: LLM-driven vs heuristic ---
 def _adaptive():
-    seeds = [c for aid in ("A1", "A2", "A4", "A5")
+    seeds = [c for aid in ("A1", "A2", "A5")
              for c in next(a for a in attacks if a.id == aid).generate(3)]
-    adv = AdaptiveAttacker(HeuristicAttackerLLM(), rounds=C.ADAPTIVE_ROUNDS)
-    recs = adv.run(seeds, pipe, judge)
-    return {"records": recs_to(recs), "curve": adaptive_asr_curve(recs)}
+    adv_llm = AdaptiveAttacker(llm, rounds=C.ADAPTIVE_ROUNDS)          # real Qwen3-8B red-teams
+    recs_llm = adv_llm.run(seeds, pipe, judge, defenses=best_defs)
+    adv_h = AdaptiveAttacker(HeuristicAttackerLLM(), rounds=C.ADAPTIVE_ROUNDS)
+    recs_h = adv_h.run(seeds, pipe, judge, defenses=best_defs)
+    return {"vs_stack": best["stack"],
+            "llm": {"records": recs_to(recs_llm), "curve": adaptive_asr_curve(recs_llm)},
+            "heuristic": {"records": recs_to(recs_h), "curve": adaptive_asr_curve(recs_h)}}
 adaptive = checkpoint("adaptive", _adaptive)
 llm.save()
-curve = adaptive["curve"]
-log(f"adaptive ASR by round: {[f'{x:.0%}' for x in curve]}")
+curve = adaptive["llm"]["curve"]
+log(f"adaptive vs {best['stack']} | LLM {[f'{x:.0%}' for x in curve]} | "
+    f"heuristic {[f'{x:.0%}' for x in adaptive['heuristic']['curve']]}")
 
 # ---------------- plots + governance + results ----------------
 report.asr_bar(undef, ART / "asr_undefended.png")
@@ -111,6 +138,10 @@ results = {
     "baseline_asr": metrics.asr(undef), "defended_asr": best["asr"], "frr": best["frr"],
     "pareto": [list(p) for p in search["pareto"]],
     "adaptive_curve": curve,
+    "adaptive_vs_stack": adaptive["vs_stack"],
+    "adaptive_curve_heuristic": adaptive["heuristic"]["curve"],
+    "tuned_thresholds": tuned["best_params"],
+    "tuned_metrics": tuned["tuned_metrics"],
     "n_stacks_screened": len(search["screened"]),
     "cache_stats": llm.stats(),
     "elapsed_s": round(time.time() - t0, 1),
@@ -128,5 +159,8 @@ gu, gf = metrics.group_asr(undef, "attack_id"), metrics.group_asr(full, "attack_
 for a in sorted(gu): print(f"  {a}: {gu[a]:.0%} -> {gf.get(a,0):.0%}")
 print(f"Best stack [{best['stack']}] robustness={best['robustness']:.0%} "
       f"utility={best['utility']:.2f} frr={best['frr']:.0%}")
-print(f"Adaptive ASR by round: {[f'{x:.0%}' for x in curve]}")
+print(f"Optuna-tuned thresholds: {tuned['best_params']} -> "
+      f"ASR {tuned['tuned_metrics']['asr']:.0%} FRR {tuned['tuned_metrics']['frr']:.0%}")
+print(f"Adaptive vs [{best['stack']}]  LLM: {[f'{x:.0%}' for x in curve]}  "
+      f"heuristic: {[f'{x:.0%}' for x in adaptive['heuristic']['curve']]}")
 print(f"Cache: {llm.stats()}")

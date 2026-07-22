@@ -140,15 +140,19 @@ _[Pre-filled from `artifacts/results.json` — VERIFY before submitting.]_
 undefended: the bot echoes the injected marker; A5: the 🔒 internal canary document is
 retrieved. See the UI screenshots `artifacts/ui_v2_livedemo_attack.png`.*
 
-## 2.3 Adaptive attacker (A7)
-_[Pre-filled: adaptive ASR held at **42 %** across 6 rounds — `artifacts/adaptive_curve.png`.]_
+## 2.3 Adaptive attacker (A7) — robustness under adaptive attack
+_[Pre-filled: A7 is a PAIR-style mutate-retry loop. We run it two ways — with the **real
+Qwen3-8B as the mutator (LLM-driven)** and with an algorithmic heuristic mutator — and
+crucially **against the selected best defence stack (D4+D5)**: "can an adaptive attacker
+bypass our defences?". Both stay at **0 % ASR across all 6 rounds** — the stack holds.]_
 
 **[FIGURE 3 — `artifacts/adaptive_curve.png`]**
 
-**✍️ WRITE (team):** Interpret the flat curve honestly — the heuristic mutator did not
-improve over rounds. Discuss *why* (mutations didn't defeat the strongest refusals) and
-what an LLM-driven attacker might change. **A negative/flat result is a valid finding —
-do not fake an upward curve.**
+**✍️ WRITE (team):** Interpret this as a *robustness-under-adaptive-attack* result — even
+an LLM red-teaming the defended pipeline over 6 rounds fails, because D4 (output filter)
+and D5 (groundedness) act **after** generation regardless of how the input is mutated.
+State honestly that the attacker is the same aligned model (self-red-team); a
+jailbroken/uncensored attacker model is future work.
 
 ## 2.4 Interpretation
 **✍️ WRITE (team) — this is the highest-value paragraph in §2.** Explain the *pattern*:
@@ -180,7 +184,8 @@ defence maps to the attack it counters.
 
 ## 3.2 Defence selection — two-stage search
 _[Pre-filled: all **64** defence-stack subsets were screened cheaply, then finalists
-re-evaluated at full sample size; Optuna tuned thresholds.]_
+re-evaluated at full sample size. **Optuna** (TPE, 15 trials) then tuned the winning
+stack's continuous threshold — D5 groundedness → **0.18** — holding ASR 0 % at FRR 0 %.]_
 
 **[FIGURE 4 — `artifacts/heatmap.png`]** attack × defence ASR matrix.
 **[FIGURE 5 — `artifacts/pareto.png`]** utility vs robustness Pareto frontier (knee marked).
@@ -212,6 +217,11 @@ _[Pre-filled from `artifacts/results.json` — VERIFY.]_
 | Utility (answer quality vs gold) | **0.45** |
 | False-refusal rate (benign wrongly blocked) | **0 %** |
 | Stacks evaluated | 64 |
+| Optuna-tuned D5 groundedness threshold | **0.18** (ASR 0 %, FRR 0 %) |
+
+> Utility & FRR are measured on **150 held-out benign questions guaranteed disjoint from
+> the KB** (no gold answer is an indexed document) — a true generalisation test, not
+> retrieval echo.
 
 **✍️ WRITE (team):** Interpret this — the search selected a *minimal* stack (D4 output
 filter + D5 groundedness) that neutralises every attack at **zero** false-refusal cost.

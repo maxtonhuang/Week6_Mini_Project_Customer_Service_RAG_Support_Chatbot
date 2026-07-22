@@ -183,3 +183,44 @@ def attack_defense_matrix(pipeline, attacks, judge, defenses_list, n=None) -> li
         records += run_suite(pipeline, attacks, judge, defenses=list(defenses_list), n=n,
                              stack_label=RunRecord.stack_label(_defense_ids(defenses_list)))
     return records
+
+
+# ------------------------------ Optuna threshold tuning ------------------------------
+
+def tune_thresholds(pipeline, attacks, judge, defense_factory, benign_eval, param_space,
+                    n_trials=None, n=None, benign_k=None, objective=None) -> dict:
+    """Tune the *continuous* thresholds of a chosen defence stack with Optuna (TPE).
+
+    ``defense_factory(params: dict) -> list[Defense]`` rebuilds the stack for a given set
+    of threshold values; ``param_space`` maps each name to a (low, high) float range.
+    Maximises ``objective`` (default: robustness - 0.5*FRR) over ``n_trials``, then
+    re-scores the winner at full sample size. Optuna is imported lazily.
+    """
+    import optuna  # lazy (dev/Colab dependency)
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+    n = config.N_PER_ATTACK if n is None else n
+    n_trials = 20 if n_trials is None else n_trials
+    objective = objective or _default_objective
+    screen_benign = benign_eval[:benign_k] if benign_k else benign_eval
+
+    def _obj(trial):
+        params = {name: trial.suggest_float(name, lo, hi) for name, (lo, hi) in param_space.items()}
+        defs = defense_factory(params)
+        m = evaluate_stack(pipeline, attacks, judge, defs or None, screen_benign, n=n)
+        return objective(m)
+
+    study = optuna.create_study(direction="maximize",
+                                sampler=optuna.samplers.TPESampler(seed=config.SEED))
+    study.optimize(_obj, n_trials=n_trials, show_progress_bar=False)
+
+    best_params = study.best_params
+    best_defs = defense_factory(best_params)
+    tuned = evaluate_stack(pipeline, attacks, judge, best_defs or None,
+                           benign_eval, n=config.N_PER_ATTACK)
+    return {
+        "best_params": best_params,
+        "best_objective": study.best_value,
+        "n_trials": n_trials,
+        "tuned_metrics": _clean(tuned),
+        "trials": [{"params": t.params, "value": t.value} for t in study.trials],
+    }

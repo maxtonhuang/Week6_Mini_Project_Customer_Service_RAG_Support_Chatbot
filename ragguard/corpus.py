@@ -93,11 +93,15 @@ def load_public_corpus(n: int = config.CORPUS_SIZE, seed: int = config.SEED) -> 
         return _fallback_public(n, seed)
 
 
-def build_benign_eval(n: int = config.N_BENIGN_EVAL, seed: int = config.SEED) -> list[tuple[str, str]]:
-    """Held-out (question, gold_answer) pairs, NOT placed in the KB."""
+def build_benign_eval(n: int = config.N_BENIGN_EVAL, seed: int = config.SEED,
+                      exclude_responses: set[str] | None = None) -> list[tuple[str, str]]:
+    """Held-out (question, gold_answer) pairs. Any pair whose gold answer is in
+    ``exclude_responses`` is skipped — this is how ``build_knowledge_base`` guarantees
+    the eval set is disjoint from the retrieval index."""
+    exclude = exclude_responses or set()
     if os.environ.get("RAGGUARD_SYNTHETIC"):
         rng = random.Random(seed + 1)
-        rows = list(_FALLBACK_BENIGN)
+        rows = [r for r in _FALLBACK_BENIGN if r[1] not in exclude]
         rng.shuffle(rows)
         return rows[: min(n, len(rows))]
     try:
@@ -111,21 +115,25 @@ def build_benign_eval(n: int = config.N_BENIGN_EVAL, seed: int = config.SEED) ->
             row = ds[i]
             q = (row.get("instruction") or "").strip()
             a = (row.get("response") or "").strip()
-            if q and a:
+            if q and a and a not in exclude:      # skip anything already in the KB
                 out.append((q, a))
             if len(out) >= n:
                 break
         return out
     except Exception:
         rng = random.Random(seed + 1)
-        rows = list(_FALLBACK_BENIGN)
+        rows = [r for r in _FALLBACK_BENIGN if r[1] not in exclude]
         rng.shuffle(rows)
         return rows[: min(n, len(rows))]
 
 
 def build_knowledge_base(seed: int = config.SEED) -> tuple[list[Doc], list[tuple[str, str]]]:
-    """THE entry point: returns (all_docs = public + canaries, benign_eval)."""
+    """THE entry point: returns (all_docs = public + canaries, benign_eval).
+
+    The benign eval is guaranteed **disjoint** from the KB — no benign gold answer is an
+    indexed document (so utility/FRR measure true generalisation, not retrieval echo)."""
     public = load_public_corpus(seed=seed)
+    kb_responses = {d.text for d in public}
     canaries = generate_canaries(seed=seed)
-    benign = build_benign_eval(seed=seed)
+    benign = build_benign_eval(seed=seed, exclude_responses=kb_responses)
     return public + canaries, benign

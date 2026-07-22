@@ -42,10 +42,13 @@ with identical results. Checkpointed per phase (`artifacts/full/`), resumable.
 | **Overall** | **25% → 0%** |
 
 - **Best stack `[D4+D5]`** (output filter + groundedness) → robustness **100%**, utility
-  **0.45**, **FRR 0%**. The full 64-stack search found a different minimal stack than the
-  earlier bounded run ([D2+D3]) — both reach 100% robustness at 0% FRR.
-- Adaptive attacker: **42%** flat across 6 rounds (a real finding; an LLM-driven attacker
-  would likely do better — noted for the report).
+  **0.45**, **FRR 0%**, measured on a **benign eval disjoint from the KB** (0/150 overlap).
+- **Optuna** (TPE, 15 trials) tuned the D5 groundedness threshold to **0.18** (ASR 0%, FRR 0%).
+- **Adaptive attacker (A7)** — real **Qwen3-8B mutator** (+ heuristic baseline), run
+  **against the best stack**: **0% ASR across all 6 rounds** — the defences hold under an
+  adaptive LLM attacker.
+- *(Three reviewer gaps fixed: Optuna tuning added; A7 now LLM-driven vs the defended
+  stack; benign eval guaranteed disjoint from the KB. See `tests/test_gaps.py`.)*
 - **Gradio UI** (redesigned via the ui-ux-pro-max skill): status-strip of key metrics,
   numbered ①②③ step-cards with semantic red (attack) / green (defence) borders, Fira/system
   typography, and the Attack Lab table now showing **ID · Attack name · Type · ASR**.

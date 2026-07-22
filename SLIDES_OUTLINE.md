@@ -66,11 +66,11 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 - **SAY:** The spread (not a saturated ~100%) is *because* we used a genuinely aligned
   model — attacks are non-trivial, so the defence story is meaningful.
 
-### Slide 7 — Adaptive attacker  ·  ~30s  ·  [C2]  *(optional / cut if short on time)*
+### Slide 7 — Adaptive attacker  ·  ~30s  ·  [C2/C3]
 - **SHOW:** `artifacts/adaptive_curve.png`.
-- **SAY:** Our mutate-retry agent held flat at **42%** across 6 rounds — an honest result;
-  the heuristic mutator didn't beat the strongest refusals. (An LLM-driven attacker is
-  future work.)
+- **SAY:** A PAIR-style loop with the **real Qwen3-8B as the mutator**, run **against our
+  best stack (D4+D5)**. Across **6 rounds it never breaks through — 0% ASR**. The defence
+  holds even under an adaptive LLM attacker (D4/D5 filter *after* generation).
 
 ### Slide 8 — Defences  ·  ~45s  ·  [C3]
 - **SHOW:** D1–D6 at 3 hook points (pre-retrieval / post-retrieval / post-generation).
@@ -79,10 +79,11 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 
 ### Slide 9 — What robustness costs ⭐⭐  ·  ~70s  ·  [C3]  *(your strongest slide)*
 - **SHOW:** `artifacts/heatmap.png` (attack×defence) **and** `artifacts/pareto.png`.
-- **SAY (real numbers):** We searched **all 64 defence stacks**. Best = **D4 + D5**
-  (output filter + groundedness): **ASR 25% → 0%**, **false-refusal 0%**, utility
-  preserved (0.45). A *minimal* two-defence stack neutralises every attack at **no** cost
-  to legitimate users.
+- **SAY (real numbers):** We searched **all 64 defence stacks**, then **Optuna-tuned** the
+  winner's threshold (D5→0.18). Best = **D4 + D5** (output filter + groundedness):
+  **ASR 25% → 0%**, **false-refusal 0%**, utility preserved (0.45) on a **held-out benign
+  set disjoint from the KB**. A *minimal* two-defence stack neutralises every attack at
+  **no** cost to legitimate users.
 - **SAY:** That's the accuracy–robustness tradeoff, measured — not asserted.
 
 ### Slide 10 — Governance re-score + deployment  ·  ~30s  ·  [C3]
