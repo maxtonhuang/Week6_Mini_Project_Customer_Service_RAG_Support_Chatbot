@@ -86,7 +86,7 @@ We build a realistic customer-support RAG chatbot, deliberately plant traceable 
 
 | Component | Choice | Size | Why |
 |---|---|---|---|
-| Generator | `Qwen/Qwen3-8B` | 8.2B | **Upgraded from the brief's 0.5B suggestion** — 0.5B was too weak to refuse anything, making attacks trivial and defenses look artificially good (see §11). Qwen3-8B has genuine safety alignment, so attacks are non-trivial and ASR reduction is meaningful. ~16GB in bf16 → fits an L4 (24GB) or a local 32GB GPU. Qwen3 "thinking" mode is disabled for direct support answers. |
+| Generator | `Qwen/Qwen3-8B` | 8.2B | **Upgraded from the brief's 0.5B suggestion** — 0.5B was too weak to refuse anything, making attacks trivial and defenses look artificially good (see §11). Qwen3-8B has genuine safety alignment, so attacks are non-trivial and ASR reduction is meaningful. ~16GB in bf16; the pipeline auto-detects VRAM and drops to 4-bit or a smaller victim on GPUs under ~20GB. Qwen3 "thinking" mode is disabled for direct support answers. |
 | Embedder | `sentence-transformers/all-MiniLM-L6-v2` | 22.7M | Fast, tiny, extremely well-established |
 | Index | FAISS `IndexFlatIP` | — | Named in the brief; exact search, no training needed |
 | Corpus | `bitext/Bitext-customer-support-llm-chatbot-training-dataset` | 26.9K rows | Real support Q&A with `category`/`intent` labels, CDLA-Sharing-1.0 |
@@ -525,7 +525,7 @@ Use the **"Run demo script"** button (T8.4) rather than clicking manually — un
 | 4 | Defense line-up | 6 defenses + Optuna selector (exceeds "≥5") | ✅ Confirmed |
 | 5 | Deadline | **Sun 26 Jul 2026, 23:59** | ✅ Verified |
 | 6 | Who owns what | Suggested split below — deferred until code is ready to hand out | ⏸️ Deferred |
-| 7 | Compute | **Colab Pro** (L4) + validated **locally on an RTX 5090 (32GB)**. The pipeline **auto-detects GPU VRAM** (`ragguard.autotune`) and picks bf16 / 4-bit / a smaller victim model, so it runs on *any* GPU: 24GB L4 → bf16, 12GB RTX 5070 → 4-bit (auto-installs bitsandbytes), ≤10GB → Qwen2.5-3B, no GPU → tiny model / offline UI. | ✅ Confirmed |
+| 7 | Compute | **Colab Pro** (L4) + validated on a **32 GB GPU**. The pipeline **auto-detects GPU VRAM** (`ragguard.autotune`) and picks bf16 / 4-bit / a smaller victim model, so it runs on *any* GPU: 24GB → bf16, 12GB → 4-bit (auto-installs bitsandbytes), ≤10GB → Qwen2.5-3B, no GPU → tiny model / offline UI. | ✅ Confirmed |
 | 8 | Notebook format | **Resolved** — professor confirmed "one per lab" is a typo and multiple notebooks are fine. We ship **two**: `00_MAIN.ipynb` (everything, graded) + `01_DEMO.ipynb` (~5 cells, loads cache, launches UI in ~2 min) | ✅ **Settled** |
 | 9 | Gradio UI | **Yes — build it with strong UX/UI principles.** Serves Criterion 4 (20%) and the brief's "communicate to non-specialists". 4 tabs, results precomputed, clear visual hierarchy, semantic status colours | ✅ Confirmed |
 

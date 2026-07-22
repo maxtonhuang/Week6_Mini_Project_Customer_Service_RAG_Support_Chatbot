@@ -1,5 +1,5 @@
 """GPU smoke test: download Qwen3-8B, build the REAL pipeline, and confirm the core
-attack/defense loop works end-to-end on the 5090. Run with the venv python.
+attack/defense loop works end-to-end on a GPU. Run with the venv python.
 """
 import os, sys, time
 os.environ.setdefault("RAGGUARD_FAST", "1")

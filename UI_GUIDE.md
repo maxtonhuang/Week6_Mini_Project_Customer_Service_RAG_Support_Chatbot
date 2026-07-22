@@ -6,7 +6,7 @@ A 5-minute guide to the Gradio demo. No coding needed — it's all clicks.
 
 ## 1. Launch it
 
-**Locally (this machine, real Qwen3-8B on the GPU):**
+**Run locally (on a GPU):**
 ```
 .venv/Scripts/python serve_app.py
 ```
@@ -16,7 +16,7 @@ Wait ~40 seconds for "Running on local URL", then open **http://127.0.0.1:7860**
 
 > First question after launch is a little slow (the model warms up); everything after is fast.
 
-> **Any GPU works:** on launch it auto-detects your VRAM and picks a model/precision that fits
+> **Any GPU works:** on launch it auto-detects the available VRAM and picks a model/precision that fits
 > (bf16, 4-bit, or a smaller model), printing its choice to the console. On a GPU under ~16 GB it
 > runs 4-bit and installs `bitsandbytes` for you. No CUDA GPU? It falls back to a tiny model.
 

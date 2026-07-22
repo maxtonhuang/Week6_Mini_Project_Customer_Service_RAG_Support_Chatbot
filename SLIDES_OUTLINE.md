@@ -117,7 +117,7 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 
 ## Anticipated Q&A — prep answers (✍️ refine)
 - **"Why is A4 0% but A1 88%?"** → A4 asks the model to reveal its own instructions — Qwen3-8B is aligned against that; A1 injects a concrete instruction the model follows. Model-capability finding.
-- **"Isn't 8B too small / why not GPT-4?"** → We need a *local, reproducible, attackable* victim with real alignment; 8B fits a 32 GB GPU and gives non-saturated ASR. Bigger = future work.
+- **"Isn't 8B too small / why not GPT-4?"** → We need a *self-hostable, reproducible, attackable* victim with real alignment; the 8B runs on a single GPU (auto-scaling to available VRAM) and gives non-saturated ASR. Bigger = future work.
 - **"How do you know defences don't just refuse everything?"** → We measure **false-refusal rate on 150 benign queries** — the best stack is **0%**.
 - **"Is the judge reliable?"** → Deterministic rules (canary string, n-gram overlap) — reproducible; canaries make extraction exact. (LLM-judge cross-check available.)
 - **"Adaptive attacker flat — is that a failure?"** → It's an honest negative result; heuristic mutations didn't beat the refusals. We report it, we don't hide it.

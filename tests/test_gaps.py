@@ -112,9 +112,9 @@ def test_tune_thresholds_runs_optuna():
 
 def test_autotune_tiers():
     from ragguard import autotune
-    assert autotune.recommend(vram=32)["load_in_4bit"] is False   # 5090 -> bf16
-    assert autotune.recommend(vram=24)["load_in_4bit"] is False   # L4  -> bf16
-    p12 = autotune.recommend(vram=12)                              # 5070 -> 4-bit
+    assert autotune.recommend(vram=32)["load_in_4bit"] is False   # 32 GB -> bf16
+    assert autotune.recommend(vram=24)["load_in_4bit"] is False   # 24 GB -> bf16
+    p12 = autotune.recommend(vram=12)                              # 12 GB -> 4-bit
     assert p12["load_in_4bit"] is True and "bitsandbytes" in p12["needs"]
     p8 = autotune.recommend(vram=8)                                # 8 GB -> smaller model
     assert p8["load_in_4bit"] is False and p8["model_id"] == autotune.SMALL_MODEL

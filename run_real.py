@@ -1,7 +1,7 @@
 """Bounded REAL pipeline run on Qwen3-8B (GPU). Produces the report artefacts:
 per-attack ASR (undefended vs defended), attack x defense heatmap, a two-stage
 defense search with Pareto/best-stack, an adaptive-attack curve, governance
-scorecards, and a few real transcripts. Sized to finish in ~10-15 min on a 5090.
+scorecards, and a few real transcripts. Sized to finish in ~10-15 min on a modern GPU.
 """
 import json, time
 t0 = time.time()

@@ -24,7 +24,7 @@ stdlib-only test-doubles because the models run on Colab, not here.
 
 **Offline sanity run** (ScriptedLLM doubles): undefended ASR **87%** → full-stack **0%**.
 
-## ✅ FULL run complete — Qwen3-8B on an RTX 5090 (32GB)
+## ✅ FULL run complete — Qwen3-8B on GPU (bf16)
 
 The **entire pipeline** ran for real (all 6 defences, **all 64 stack subsets**, N=50, full
 150-q benign for finalists) in **15.3 minutes** — the optimisations (batched generation +
@@ -60,9 +60,9 @@ with identical results. Checkpointed per phase (`artifacts/full/`), resumable.
 Why this beats the brief's 0.5B: Qwen3-8B has genuine safety alignment, so ASRs are
 **realistic and differentiated** (25%, not a saturated 87%) — a much stronger case study.
 
-### Environment (already set up on this machine)
+### Local dev environment
 `.venv/` with PyTorch **2.11+cu128**, transformers, sentence-transformers, faiss, gradio,
-optuna, etc. Re-run locally with:
+optuna, etc. Re-run with:
 ```
 .venv/Scripts/python run_full.py      # full optimised pipeline -> artifacts/ (canonical)
 .venv/Scripts/python serve_app.py     # launches the Gradio UI on http://127.0.0.1:7860
@@ -75,14 +75,14 @@ Every entry point (`00_MAIN.ipynb`, `run_full.py`, `serve_app.py`) calls
 
 | VRAM | Path | Peak (est.) |
 |---|---|---|
-| ≥30 GB (5090/A100) | Qwen3-8B bf16, batch 4 | ~28–32 GB |
-| 20–30 GB (L4 24 GB) | Qwen3-8B bf16, sequential | ~18–21 GB |
-| 10–20 GB (5070 12 GB) | Qwen3-8B **4-bit** | ~8–11 GB |
+| ≥30 GB (high-VRAM GPU) | Qwen3-8B bf16, batch 4 | ~28–32 GB |
+| 20–30 GB (24 GB GPU, e.g. Colab L4) | Qwen3-8B bf16, sequential | ~18–21 GB |
+| 10–20 GB (12–16 GB GPU) | Qwen3-8B **4-bit** | ~8–11 GB |
 | 6–10 GB | Qwen2.5-3B bf16 | ~7–9 GB |
 | <6 GB / no GPU | Qwen2.5-3B 4-bit / 0.5B CPU | — |
 
 Batched generation also **backs off on CUDA OOM** (→ sequential). The canonical report
-numbers are the **5090 bf16-8B** run; a teammate on 4-bit/smaller model will see slightly
+numbers are the **bf16 8B** run (≥30 GB GPU); a teammate on 4-bit/smaller model will see slightly
 different ASR/utility (note it in the report if used).
 
 ## ⬜ What the team must do

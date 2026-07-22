@@ -44,7 +44,7 @@ for the report. Target: Colab with an L4 GPU. Set `FAST=True` for a ~8-min valid
 run; `FAST=False` for the numbers that go in the report.
 """),
     code("""
-# --- Colab setup (skip the pip line if running locally with deps installed) ---
+# --- Colab setup (skip the pip line if deps are already installed) ---
 import os, sys, pathlib
 # If on Colab, upload/clone the project folder and point REPO at it:
 REPO = pathlib.Path.cwd()
@@ -59,7 +59,7 @@ except ImportError:
 print("repo:", REPO)
 """),
     code("""
-# --- Auto-configure for THIS machine's GPU: picks bf16 / 4-bit / smaller model by VRAM
+# --- Auto-configure for the available GPU: picks bf16 / 4-bit / smaller model by VRAM
 #     and pip-installs bitsandbytes only if a 4-bit path is chosen ---
 from ragguard import autotune
 autotune.apply()                 # sets GEN_MODEL / LOAD_IN_4BIT / BATCH_SIZE automatically

@@ -54,7 +54,7 @@ or any heavy dependency.
 1. Clone/upload this folder; open `00_MAIN.ipynb` (on Colab set the runtime to a GPU).
 2. `pip install -r requirements.txt`. For a **local NVIDIA GPU** also install a CUDA build
    of torch, e.g. `pip install torch --index-url https://download.pytorch.org/whl/cu128`.
-3. Run all. The first cell **auto-detects your GPU's VRAM** and picks the best path —
+3. Run all. The first cell **auto-detects the GPU's VRAM** and picks the best path —
    full bf16, 4-bit, or a smaller model — installing `bitsandbytes` automatically if a
    4-bit path is chosen. It prints its choice (`model=… 4bit=… batch=…`). No manual setup.
 4. `FAST=True` validates the whole pipeline in minutes; `FAST=False` produces the report numbers.
@@ -64,9 +64,9 @@ or any heavy dependency.
 
 | Detected VRAM | Path chosen |
 |---|---|
-| ≥ 30 GB (RTX 5090, A100) | Qwen3-8B bf16, batch 4 |
-| 20–30 GB (L4 24 GB, 3090/4090) | Qwen3-8B bf16, sequential |
-| 10–20 GB (RTX 5070 12 GB, 4080) | Qwen3-8B **4-bit** (auto-installs bitsandbytes) |
+| ≥ 30 GB (high-VRAM GPU) | Qwen3-8B bf16, batch 4 |
+| 20–30 GB (24 GB GPU, e.g. Colab L4) | Qwen3-8B bf16, sequential |
+| 10–20 GB (12–16 GB GPU) | Qwen3-8B **4-bit** (auto-installs bitsandbytes) |
 | 6–10 GB | Qwen2.5-3B bf16 |
 | < 6 GB / no GPU | Qwen2.5-3B 4-bit / 0.5B on CPU |
 
