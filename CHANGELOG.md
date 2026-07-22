@@ -5,6 +5,29 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [d743fb0] — 2026-07-22 · One-click full run in the UI + Drive persistence
+### Added
+- **`ragguard/fullrun.py`** — the full pipeline as a **resumable generator** (yields progress,
+  checkpoints every phase, writes `results.json`). Shared by the CLI and the UI. Can **reuse the
+  UI's already-loaded pipeline** (`controller=`) so running from the UI doesn't load a second copy
+  of the model (no VRAM doubling).
+- **"5 · Run pipeline" tab** in the Gradio UI: one **▶ Run full pipeline** button with a
+  **Quick (~minutes) / Full (~hours, resumable)** selector, a **streaming progress log**, and
+  **auto-refresh** of the Attack/Defense/Governance panels on completion. A run **keeps going when
+  you switch tabs** and re-shows its progress when the Run tab is re-opened. **🔄 Reload saved
+  results** re-reads the last run.
+- **`ragguard/drive.py`** + an optional **`USE_DRIVE`** notebook cell — mounts Google Drive and
+  points the HuggingFace model cache at it. Results/checkpoints already route to Drive via
+  `artifact_dir()` when mounted, so results **survive a reload** and the ~16 GB model isn't
+  re-downloaded each session.
+### Changed
+- `launch()` now **loads the saved `results.json`** on startup (so the tabs show real numbers
+  immediately) and enables the Gradio queue for streaming. `run_full.py` is now a thin wrapper
+  over `fullrun.run`.
+### Fixed
+- The demo-script button and the in-app "How to use" panel now reference the real best stack
+  **D4+D5** (were stale **D2+D3**).
+
 ## [b484635] — 2026-07-22 · One-click Colab (self-bootstrapping notebooks)
 ### Added
 - **Idempotent Colab bootstrap cell** as the first code cell of `01_DEMO.ipynb` and `00_MAIN.ipynb`:
