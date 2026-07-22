@@ -5,6 +5,17 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [49e1ffd] — 2026-07-22 · Pin Gradio to the 4.x line
+### Fixed
+- **Colab pulled Gradio 6.0** (requirements only said `>=4.44`), which broke the app: the public
+  **share tunnel failed** ("Could not create share link"), and — verified interactively — the Run
+  tab's **auto-refresh callback threw an error** (header/tabs stayed empty). Pinned
+  `gradio>=4.44,<5` (the line the app was built and tested on) to restore the working **full-page
+  share link** and the tab refresh. (Gradio 6 also warns that `theme`/`css` moved off the `Blocks`
+  constructor.)
+- Reminder: the slow "Loading checkpoint shards" is the **first-run ~16 GB model download** — turn
+  on the Drive cell (`USE_DRIVE = True`) so it's cached and not re-downloaded each session.
+
 ## [95716dd] — 2026-07-22 · Fix Colab launch slowness + live run progress
 ### Fixed
 - **Demo launch didn't auto-configure the GPU.** `01_DEMO` → `app.launch()` never called
