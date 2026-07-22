@@ -5,6 +5,14 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [c1183af] — 2026-07-22 · Report HF cache status (download vs reuse)
+### Added
+- `drive.use_drive()` now prints whether the model is **already cached on Drive** ("no download")
+  or will be **downloaded (~16 GB first run)**, and sets `HF_HOME`/`HF_HUB_CACHE` explicitly. Clears
+  up the "re-downloads every session" confusion: a new Colab VM has an empty `~/.cache`, so only a
+  **Drive-backed** HF cache persists across sessions / new GPUs. ("Loading checkpoint shards" is the
+  load step and runs every time regardless — it is not a re-download.)
+
 ## [49e1ffd] — 2026-07-22 · Pin Gradio to the 4.x line
 ### Fixed
 - **Colab pulled Gradio 6.0** (requirements only said `>=4.44`), which broke the app: the public
