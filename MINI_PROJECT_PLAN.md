@@ -525,7 +525,7 @@ Use the **"Run demo script"** button (T8.4) rather than clicking manually — un
 | 4 | Defense line-up | 6 defenses + Optuna selector (exceeds "≥5") | ✅ Confirmed |
 | 5 | Deadline | **Sun 26 Jul 2026, 23:59** | ✅ Verified |
 | 6 | Who owns what | Suggested split below — deferred until code is ready to hand out | ⏸️ Deferred |
-| 7 | Compute | **Colab Pro** — L4 GPU + credits available; also validated **locally on an RTX 5090 (32GB)**. Removes the free-tier quota risk and gives easy headroom | ✅ Confirmed |
+| 7 | Compute | **Colab Pro** (L4) + validated **locally on an RTX 5090 (32GB)**. The pipeline **auto-detects GPU VRAM** (`ragguard.autotune`) and picks bf16 / 4-bit / a smaller victim model, so it runs on *any* GPU: 24GB L4 → bf16, 12GB RTX 5070 → 4-bit (auto-installs bitsandbytes), ≤10GB → Qwen2.5-3B, no GPU → tiny model / offline UI. | ✅ Confirmed |
 | 8 | Notebook format | **Resolved** — professor confirmed "one per lab" is a typo and multiple notebooks are fine. We ship **two**: `00_MAIN.ipynb` (everything, graded) + `01_DEMO.ipynb` (~5 cells, loads cache, launches UI in ~2 min) | ✅ **Settled** |
 | 9 | Gradio UI | **Yes — build it with strong UX/UI principles.** Serves Criterion 4 (20%) and the brief's "communicate to non-specialists". 4 tabs, results precomputed, clear visual hierarchy, semantic status colours | ✅ Confirmed |
 

@@ -285,6 +285,9 @@ def build_app(controller: DemoController):
         gr.Markdown("# 🛡️ RAGGuard\n"
                     "*Trustworthy-AI red-team / blue-team demo — customer-service RAG chatbot*")
         gr.HTML(controller.header_stats_html())
+        _prec = "4-bit" if config.LOAD_IN_4BIT else "bf16"
+        gr.Markdown(f"<span style='font-size:12px;color:#64748b'>Runtime (auto-detected): "
+                    f"{config.GEN_MODEL} · {_prec} · {config.device()} · batch {config.BATCH_SIZE}</span>")
 
         with gr.Tab("1 · Live Demo"):
             gr.Markdown("Ask a question, optionally launch an **attack**, and toggle **defenses**.")

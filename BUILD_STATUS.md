@@ -64,9 +64,26 @@ Why this beats the brief's 0.5B: Qwen3-8B has genuine safety alignment, so ASRs 
 `.venv/` with PyTorch **2.11+cu128**, transformers, sentence-transformers, faiss, gradio,
 optuna, etc. Re-run locally with:
 ```
-.venv/Scripts/python run_real.py      # bounded real pipeline -> artifacts/
+.venv/Scripts/python run_full.py      # full optimised pipeline -> artifacts/ (canonical)
 .venv/Scripts/python serve_app.py     # launches the Gradio UI on http://127.0.0.1:7860
 ```
+
+### Runs on any GPU (auto-configured)
+Every entry point (`00_MAIN.ipynb`, `run_full.py`, `serve_app.py`) calls
+`ragguard.autotune.apply()`, which **detects GPU VRAM and picks the path**, installing
+`bitsandbytes` on demand:
+
+| VRAM | Path | Peak (est.) |
+|---|---|---|
+| ≥30 GB (5090/A100) | Qwen3-8B bf16, batch 4 | ~28–32 GB |
+| 20–30 GB (L4 24 GB) | Qwen3-8B bf16, sequential | ~18–21 GB |
+| 10–20 GB (5070 12 GB) | Qwen3-8B **4-bit** | ~8–11 GB |
+| 6–10 GB | Qwen2.5-3B bf16 | ~7–9 GB |
+| <6 GB / no GPU | Qwen2.5-3B 4-bit / 0.5B CPU | — |
+
+Batched generation also **backs off on CUDA OOM** (→ sequential). The canonical report
+numbers are the **5090 bf16-8B** run; a teammate on 4-bit/smaller model will see slightly
+different ASR/utility (note it in the report if used).
 
 ## ⬜ What the team must do
 
