@@ -89,6 +89,10 @@ pip install torch --index-url https://download.pytorch.org/whl/cu128   # GPU onl
 The results/plots are committed, so the Governance tab and charts show real numbers immediately; the
 **Live Demo / Attack Lab / Defense Lab** tabs run the real pipeline live — no `run_full.py` needed first.
 
+![RAGGuard Live Demo — an A1 direct-prompt-injection attack succeeding with no defences](artifacts/ui_v2_livedemo_attack.png)
+
+*Live Demo tab: pick an attack (here **A1**), leave defences off, and **Ask** — the red **ATTACK SUCCEEDED** badge appears; tick **D4 + D5** and Ask again to see it **BLOCKED**. Full walkthrough with per-tab screenshots in [`UI_GUIDE.md`](./UI_GUIDE.md).*
+
 **GPU auto-configuration (handled for you by `ragguard.autotune`):**
 
 | Detected VRAM | Path chosen |

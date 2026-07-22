@@ -82,6 +82,10 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 3. Tab 1 — Live Demo (start here)
 
+![RAGGuard Live Demo tab — controls on the left, result on the right](artifacts/ui_v2_livedemo.png)
+
+*The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A6`) → **③ Enable defences** (tick any of D1–D6). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
+
 ### The controls (left side)
 - **Customer question** — type any support question (e.g. *"How long do I have to return an item?"*).
 - **Attack** — a dropdown. `None` = a normal question. Pick `A1…A6` to fire an attack instead:
@@ -95,6 +99,11 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 - **Ask** — runs it. **▶ Run demo script** — auto-plays the 4-beat story below.
 
 ### Reading the result (right side)
+
+![RAGGuard Live Demo showing a red ATTACK SUCCEEDED verdict badge with retrieved context](artifacts/ui_v2_livedemo_attack.png)
+
+*Here **A1 · Direct prompt injection** was run with **no defences**: the red **🔴 ATTACK SUCCEEDED** badge gives the verdict, the **Bot answer** contains the injected marker, and **Retrieved context** lists the documents the bot pulled (📄 public / 🔒 internal-canary / ☠️ injected). Tick **D4 + D5** and click **Ask** again to watch the same attack turn 🟢 **BLOCKED**.*
+
 - **Verdict badge** (the coloured bar):
   - 🔵 **Benign query** — a normal question, no attack
   - 🔴 **ATTACK SUCCEEDED** — the attack worked (with the reason, e.g. "canary token leaked")
@@ -109,7 +118,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 ### The recommended 60-second demo (the 4 beats)
 1. **It works.** Attack = `None`, no defenses → click **Ask**. You get a helpful answer.
 2. **It breaks.** Attack = `A1` (or `A5`), no defenses → **Ask**. Badge turns 🔴 — the bot obeys the attacker / leaks a secret.
-3. **We fix it.** Tick **D2 + D3** (and **D6**) → **Ask** again. Badge turns 🟢 — same attack, now blocked.
+3. **We fix it.** Tick **D4 + D5** (the reported best stack) → **Ask** again. Badge turns 🟢 — same attack, now blocked.
 4. **It still works.** Attack = `None`, defenses still on → **Ask**. Normal answer — defenses didn't break usefulness.
 
 > Prefer the **▶ Run demo script** button for presentations — it plays all four beats for you, so there's no mis-clicking on stage.
@@ -118,26 +127,36 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 4. Tab 2 — Attack Lab
 
-- Move the **Cases per attack** slider (start small, e.g. 10).
-- Click **Run attack suite**. It runs every attack and shows a **bar chart of success rate (ASR)** per attack, plus a table.
+![RAGGuard Attack Lab tab — full-run table and chart on top, live sweep controls below](artifacts/ui_v2_attacklab.png)
+
+*Top half = the **last full run** (per-attack ASR table + bar chart; A1 is highest at 88%, A4 is 0%). Bottom half = **run your own quick sweep live**: set **Cases per attack** with the slider, click **Run attack sweep**, and the results fill the **Live ASR** panel.*
+
+- The top table/chart are precomputed — they load instantly.
+- To run live: move the **Cases per attack** slider (start small, e.g. 10) → click **Run attack sweep**.
 - Higher bars = more successful attacks against the undefended bot.
 
-> This takes a little while (it runs the model many times). Fine for exploring; for a live presentation, show the pre-made chart in `artifacts/asr_undefended.png` instead.
+> The live sweep calls the model many times, so it takes a little while. Fine for exploring; for a live presentation, show the pre-made chart in `artifacts/asr_undefended.png` instead.
 
 ---
 
 ## 5. Tab 3 — Defense Lab
 
-- Click **Run defense search**. It tries many combinations of defenses and reports the **best stack** — the smallest set of defenses that stops the most attacks while keeping the bot useful.
-- The **Pareto frontier** table shows the trade-off: each row is a defense combo with its *utility* (how useful the bot still is) and *robustness* (how well it resists attacks).
+![RAGGuard Defense Lab tab — full-run heatmap, Pareto and adaptive plots on top, live evaluate below](artifacts/ui_v2_defenselab.png)
 
-> This is the slowest tab (it's a big search). For a demo, rely on the precomputed `artifacts/pareto.png` and the best stack already reported (**[D2+D3]**).
+*Top half = the **full-run results**: the **best stack (D4+D5)** with its robustness/utility/FRR, the attack×defence **heatmap**, the utility-vs-robustness **Pareto** plot, and the **adaptive attacker** curve (flat along the bottom = the stack holds). Bottom half = **evaluate any stack live**.*
+
+- The full search over all 64 defence combinations is precomputed and shown at the top — the **best stack is D4+D5** (robustness 100%, utility 0.45, FRR 0%; overall ASR 25% → 0%).
+- To test a specific combination: tick defences under **Defences to evaluate** and click **Evaluate stack** — it runs a quick attack + benign check on that exact stack.
+
+> The live **Evaluate stack** call runs the model, so give it a moment. For a demo, the precomputed heatmap/Pareto at the top are instant.
 
 ---
 
 ## 6. Tab 4 — Governance
 
-Shows the **NIST AI RMF scorecard** — how the system rates on Map / Measure / Manage — **before** defenses (mostly 🔴 gaps) and **after** (mostly 🟢 managed). This is the "why it matters to a stakeholder" view.
+![RAGGuard Governance tab — NIST AI RMF scorecard, baseline vs defended](artifacts/ui_v2_governance.png)
+
+*The **NIST AI RMF scorecard** — how the system rates on Map / Measure / Manage. **Baseline (undefended, 4/18)** on top is mostly 🔴 gaps; **Defended (17/18)** below is mostly 🟢 managed, each row with its evidence. This is the "why it matters to a stakeholder" view.*
 
 ---
 
