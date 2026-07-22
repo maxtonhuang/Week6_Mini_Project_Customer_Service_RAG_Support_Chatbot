@@ -5,6 +5,25 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [95716dd] — 2026-07-22 · Fix Colab launch slowness + live run progress
+### Fixed
+- **Demo launch didn't auto-configure the GPU.** `01_DEMO` → `app.launch()` never called
+  `autotune`, so on a ~16 GB Colab GPU it loaded Qwen3-8B in **bf16** (~16 GB), spilled to
+  CPU/disk, and "Loading checkpoint shards" crawled for minutes (looked hung). `launch()` now
+  runs `autotune.apply()` (4-bit on ≤16 GB GPUs, etc.).
+- **Re-running the launch cell** failed with *"unable to start gradio server"* — `launch()` now
+  calls `gr.close_all()` first, so re-running is safe.
+- `rag.QwenLLM` reads `config.GEN_MODEL` at call time so autotune's model choice actually applies.
+### Added
+- **Live progress on `launch()`** — prints `[RAGGuard]` lines (auto-config → loading model →
+  starting UI) instead of a silent gap.
+- **Run-tab progress feedback** — `fullrun` emits a `-> <phase>...` line before each phase, and the
+  Run button streams from a background thread with a **heartbeat + elapsed timer (~3 s)** so a long
+  phase (the 64-stack search) never looks frozen; the run survives tab switches.
+### Changed
+- `launch(share=…)` defaults to env `RAGGUARD_SHARE` (on); pass **`share=False`** for a reliable
+  inline view when the Colab `gradio.live` tunnel stalls. Documented in `UI_GUIDE.md` + the notebook.
+
 ## [38d179a] — 2026-07-22 · Prune unused screenshots
 ### Removed
 - Deleted **17 unused UI screenshots** (pre-v1, plain `ui_*`, and the superseded v2 set, plus an
