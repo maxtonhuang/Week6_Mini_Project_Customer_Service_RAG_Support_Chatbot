@@ -5,6 +5,15 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [8a82c1e] — 2026-07-22 · Fresh-clone setup docs
+### Added
+- **First-time setup** section in `UI_GUIDE.md` (§1) and `README.md` — clone → venv → deps →
+  launch, with separate **local (Windows / macOS / Linux)** and **Colab (no-venv)** paths. Closes
+  the gap where the UI launch step assumed an existing `.venv`.
+### Changed
+- Clarified that the committed `artifacts/` results/plots power the Governance tab and charts
+  immediately, and the live tabs need no prior `run_full.py`.
+
 ## [c60f4c3] — 2026-07-22 · Documentation neutrality
 ### Changed
 - Generalized every GPU reference in docs, comments, notebooks, and scripts — removed
