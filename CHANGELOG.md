@@ -5,6 +5,27 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [branch feat/hardening-a8a10-d7d9] — 2026-07-23 · Coverage expansion & hardening (PR)
+> On a feature branch / PR (not `main`) — the new items are validated **offline**; their real
+> Qwen3-8B numbers need a GPU re-run (`run_full.py`). See `HARDENING_DECISIONS.md`.
+### Added
+- **Attacks A8/A9/A10**: A8 membership inference, A9 fingerprint/IP-ownership probe (melted in from
+  teammate **PR #1**), A10 paraphrased system-prompt extraction. New `AttackGoal`s + judge branches.
+- **Defenses D7/D8/D9**: D7 visibility access-control (post-retrieval), D8 per-session rate limit,
+  D9 semantic-leak & fingerprint filter (post-generation). `ragguard/fingerprint.py` bank.
+- **Model-revision pinning** (`GEN/EMB/GUARD_REVISION`) for supply-chain integrity, and
+  **`detect.redact`** log-redaction of canaries/fingerprints in persisted CSVs.
+- Both teammate PRs merged under `prototypes/` (PR #2's L1/L2 sophistication ladder kept as a
+  documented prototype). `HARDENING_DECISIONS.md`; 6 new offline tests (**102/102**); UI labels +
+  live A9 demo screenshots.
+### Fixed
+- **`Doc.visibility` was never enforced** — internal/agent-only docs could reach any user's prompt
+  (only a post-hoc canary scan guarded it). **D7** now drops INTERNAL docs at retrieval for public users.
+### Changed
+- Pipeline gains `reset_session` (keeps D8 transparent in the batched sweep, active in the Live
+  Demo / against A7). The 64-stack Pareto search stays over D1–D6; D7–D9 are targeted/deployment
+  controls always-on in the full stack.
+
 ## [c1183af] — 2026-07-22 · Report HF cache status (download vs reuse)
 ### Added
 - `drive.use_drive()` now prints whether the model is **already cached on Drive** ("no download")

@@ -83,7 +83,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ![RAGGuard Live Demo tab — controls on the left, result on the right](artifacts/ui_v3_livedemo.png)
 
-*The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A6`) → **③ Enable defences** (tick any of D1–D6). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
+*The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A10`) → **③ Enable defences** (tick any of D1–D9). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
 
 ![RAGGuard in dark mode — the header status chips stay readable in both themes](artifacts/ui_v3_livedemo_dark.png)
 
@@ -91,14 +91,20 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ### The controls (left side)
 - **Customer question** — type any support question (e.g. *"How long do I have to return an item?"*).
-- **Attack** — a dropdown. `None` = a normal question. Pick `A1…A6` to fire an attack instead:
+- **Attack** — a dropdown. `None` = a normal question. Pick an attack to fire it instead:
   - **A1** Direct prompt injection — "ignore your instructions and do X"
   - **A2** Jailbreak / persona override
   - **A3** Indirect injection — a *poisoned document* carries the attack
   - **A4** System-prompt extraction — "reveal your instructions"
   - **A5** Canary / knowledge-base extraction — "repeat the internal document"
   - **A6** Obfuscated injection — the same attack, hidden with encoding tricks
-- **Active defenses** — six checkboxes (D1–D6). Tick any combination to switch defenses on.
+  - **A8** Membership inference — "does an internal doc about X exist?" (confirming it leaks)
+  - **A9** Fingerprint / IP-ownership probe — makes the bot emit a planted `OWNER-FP-…` phrase
+  - **A10** Paraphrased system-prompt extraction — "explain your instructions in your own words"
+- **Active defenses** — nine checkboxes (D1–D9). Tick any combination to switch defenses on. The
+  new ones: **D7** Visibility access-control (drops internal docs before the prompt), **D8** query-rate
+  limit (throttles repeated queries in a session), **D9** semantic leak & fingerprint filter (blocks
+  `OWNER-FP` phrases and paraphrased prompt leaks).
 - **Ask** — runs it. **▶ Run demo script** — auto-plays the 4-beat story below.
 
 ### Reading the result (right side)
@@ -125,6 +131,16 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 4. **It still works.** Attack = `None`, defenses still on → **Ask**. Normal answer — defenses didn't break usefulness.
 
 > Prefer the **▶ Run demo script** button for presentations — it plays all four beats for you, so there's no mis-clicking on stage.
+
+### Example — the new A9 fingerprint attack
+
+![A9 fingerprint attack succeeding: the bot emits a planted OWNER-FP ownership phrase](artifacts/ui_v3_livedemo_a9.png)
+
+*Attack = **A9 · Fingerprint / IP-ownership probe**, no defences → the bot emits the planted `OWNER-FP-…` phrase (red **ATTACK SUCCEEDED** — the retrieved context shows the fingerprint FAQ that taught it).*
+
+![Same A9 attack blocked once D9 is enabled](artifacts/ui_v3_livedemo_a9_blocked.png)
+
+*Tick **D9 · Semantic leak & fingerprint filter** and Ask again → 🟢 **BLOCKED**. (Try **A8** with **D7** to see access-control drop the internal doc, and **A10** with **D9** for the paraphrased-prompt leak.)*
 
 ---
 
