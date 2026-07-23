@@ -28,7 +28,8 @@ results = json.loads(res_path.read_text(encoding="utf-8")) if res_path.exists() 
 ctrl = DemoController(pipe, attacks, judge, defenses, canaries, benign, results=results)
 
 app = build_app(ctrl)
-app.launch(server_name="127.0.0.1", server_port=7860, share=False, prevent_thread_lock=True)
+app.launch(server_name="127.0.0.1", server_port=7860, share=False, prevent_thread_lock=True,
+           allowed_paths=[str(config.artifact_dir())])   # serve plot PNGs from the artifact dir
 print("GRADIO_UP http://127.0.0.1:7860", flush=True)
 keepalive = int(os.environ.get("RAGGUARD_UI_KEEPALIVE", "21600"))  # default 6h
 time.sleep(keepalive)   # stay up for the user, then auto-release VRAM

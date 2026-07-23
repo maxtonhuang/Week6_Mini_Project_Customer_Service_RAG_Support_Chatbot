@@ -533,4 +533,8 @@ def launch(share: bool | None = None, offline: bool | None = None,
     _log("starting the UI… " + ("creating the public gradio.live link — this can take ~30–60 s "
                                  "on Colab. If it stalls, re-run with share=False for an inline view."
                                  if share else "rendering inline in this cell (no public link)."))
+    # allowed_paths lets Gradio serve the plot PNGs from the artifact dir wherever it lives
+    # (repo/artifacts, a mounted Drive, or a custom RAGGUARD_ARTIFACTS) — the Run tab's refresh
+    # returns those image paths, and Gradio blocks paths outside cwd/temp unless allow-listed.
+    kw.setdefault("allowed_paths", [str(config.artifact_dir())])
     return app.launch(share=share, show_error=True, **kw)
