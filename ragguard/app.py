@@ -193,7 +193,9 @@ class DemoController:
     def cached_attack_rows(self) -> list[list]:
         u = self.results.get("asr_by_attack_undefended", {})
         f = self.results.get("asr_by_attack_fullstack", {})
-        ids = sorted(set(u) | set(f) | set(ATTACK_NAME))
+        # numeric sort so A10 follows A9 (not string-sorted between A1 and A2)
+        ids = sorted(set(u) | set(f) | set(ATTACK_NAME),
+                     key=lambda a: (int(a[1:]) if a[1:].isdigit() else 10**9, a))
         pct = lambda d, a: f"{d[a]:.0%}" if a in d else "–"
         return [[a, ATTACK_NAME.get(a, ""), ATTACK_LAB.get(a, ""), pct(u, a), pct(f, a)]
                 for a in ids]

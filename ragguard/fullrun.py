@@ -242,4 +242,5 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
     yield stamp(f"DONE in {(time.time()-t0)/60:.1f} min — "
                 f"undefended {metrics.asr(undef):.0%} -> full-stack {metrics.asr(full):.0%}, "
                 f"best [{best['stack']}]")
-    yield "  per-attack: " + " · ".join(f"{a} {gu[a]:.0%}->{gf.get(a,0):.0%}" for a in sorted(gu))
+    _ord = lambda a: (int(a[1:]) if a[1:].isdigit() else 10**9, a)   # A10 after A9, not after A1
+    yield "  per-attack: " + " · ".join(f"{a} {gu[a]:.0%}->{gf.get(a,0):.0%}" for a in sorted(gu, key=_ord))
