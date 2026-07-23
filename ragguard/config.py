@@ -25,6 +25,13 @@ GEN_MODEL = "Qwen/Qwen3-8B"   # aligned chat model (Qwen3 drops the -Instruct su
 EMB_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 GUARD_MODEL = "protectai/deberta-v3-base-prompt-injection-v2"
 
+# Supply-chain integrity: pin exact HF revisions (commit SHA / tag) rather than a bare id, so a
+# swapped model/guardrail can't silently become a backdoor. None = latest (default). Recommended:
+# set these to the commit SHAs you validated for the report run. Overridable via env.
+GEN_REVISION = os.environ.get("RAGGUARD_GEN_REVISION") or None
+EMB_REVISION = os.environ.get("RAGGUARD_EMB_REVISION") or None
+GUARD_REVISION = os.environ.get("RAGGUARD_GUARD_REVISION") or None
+
 # --- Datasets ---
 CORPUS_DATASET = "bitext/Bitext-customer-support-llm-chatbot-training-dataset"
 INJECTION_DATASET = "deepset/prompt-injections"
@@ -57,6 +64,9 @@ ADAPTIVE_ROUNDS = int(os.environ.get("RAGGUARD_ROUNDS", "3" if FAST_MODE else "6
 # Two-stage defense-stack search.
 SCREEN_N = int(os.environ.get("RAGGUARD_SCREEN_N", "6" if FAST_MODE else "15"))
 CONFIRM_TOP = int(os.environ.get("RAGGUARD_CONFIRM_TOP", "5"))
+
+# D8 rate limit: max queries per session before it starts blocking (deployment control).
+RATE_BUDGET = int(os.environ.get("RAGGUARD_RATE_BUDGET", "12"))
 
 # Benign-eval sizing: small during the cheap screen, full only for finalists.
 SCREEN_BENIGN = int(os.environ.get("RAGGUARD_SCREEN_BENIGN", "8" if FAST_MODE else "20"))

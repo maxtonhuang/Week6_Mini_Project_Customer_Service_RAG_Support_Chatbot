@@ -13,7 +13,7 @@ def _canaries():
 
 def test_build_all_attacks_ids():
     atks = build_all_attacks(_canaries())
-    assert [a.id for a in atks] == ["A1", "A2", "A3", "A4", "A5", "A6"]
+    assert [a.id for a in atks] == ["A1", "A2", "A3", "A4", "A5", "A6", "A8", "A9", "A10"]
 
 
 def test_each_attack_generates_n_wellformed():

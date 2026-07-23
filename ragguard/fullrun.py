@@ -63,7 +63,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
     from ragguard.judge import RuleJudge
     from ragguard.attacks import (build_all_attacks, AdaptiveAttacker,
                                   HeuristicAttackerLLM, adaptive_asr_curve)
-    from ragguard.defenses import build_all_defenses
+    from ragguard.defenses import build_all_defenses, SEARCH_DEFENSE_IDS
     from ragguard.schemas import RunRecord
 
     yield stamp(f"profile={profile} offline={offline} "
@@ -143,9 +143,12 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
     matrix = recs_from(raw); _save()
     yield stamp("attack x defence matrix done" + (" (resumed)" if hit else ""))
 
-    yield stamp("-> defence-stack search (screening all 64 stacks -- the long phase)...")
+    # Exhaustive Pareto search over the original content filters D1-D6 (64 stacks). D7-D9 are
+    # targeted/deployment controls (A8/A9/A10) evaluated in the full stack + labs, not searched.
+    search_defenses = [d for d in defenses if d.id in SEARCH_DEFENSE_IDS]
+    yield stamp("-> defence-stack search (screening all 64 D1-D6 stacks -- the long phase)...")
     search, hit = checkpoint("search",
-        lambda: orchestrator.two_stage_search(pipe, attacks, judge, defenses, benign,
+        lambda: orchestrator.two_stage_search(pipe, attacks, judge, search_defenses, benign,
                                               screen_n=C.SCREEN_N, screen_benign=C.SCREEN_BENIGN,
                                               confirm_top=C.CONFIRM_TOP))
     _save()

@@ -45,6 +45,8 @@ class AttackGoal(str, Enum):
     CANARY_EXTRACTION = "canary_extraction"                 # leak a planted confidential doc
     POLICY_VIOLATION = "policy_violation"                   # break a stated policy / refusal rule
     INDIRECT_INJECTION = "indirect_injection"               # obey an instruction hidden in retrieved text
+    MEMBERSHIP_INFERENCE = "membership_inference"           # confirm an agent-only doc/topic exists in the KB
+    OWNERSHIP_LEAK = "ownership_leak"                        # emit a planted IP/ownership fingerprint phrase
 
 
 # Human-readable lab-type labels (map onto the brief's 5 lab attack types)

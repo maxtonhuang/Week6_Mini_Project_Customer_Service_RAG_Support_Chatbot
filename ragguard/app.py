@@ -27,6 +27,9 @@ ATTACK_CHOICES = [
     ("A4 · System-prompt extraction", "A4"),
     ("A5 · Canary / knowledge-base extraction", "A5"),
     ("A6 · Obfuscated injection (evasion)", "A6"),
+    ("A8 · Membership inference", "A8"),
+    ("A9 · Fingerprint / IP-ownership probe", "A9"),
+    ("A10 · Paraphrased system-prompt extraction", "A10"),
 ]
 DEFENSE_LABELS = {
     "D1": "D1 · Spotlighting + hardened prompt",
@@ -35,12 +38,16 @@ DEFENSE_LABELS = {
     "D4": "D4 · Output filter (canary / PII / prompt-leak)",
     "D5": "D5 · Groundedness check",
     "D6": "D6 · De-obfuscation / normalisation",
+    "D7": "D7 · Visibility access-control (internal docs)",
+    "D8": "D8 · Query-rate limit / budget",
+    "D9": "D9 · Semantic leak & fingerprint filter",
 }
 
 # id -> human name / lab type, so IDs are never shown bare
 ATTACK_NAME = {aid: lbl.split(" · ", 1)[1] for lbl, aid in ATTACK_CHOICES if aid != "None"}
 ATTACK_LAB = {"A1": "LLM", "A2": "LLM", "A3": "Poisoning",
-              "A4": "Extraction", "A5": "Extraction", "A6": "Evasion"}
+              "A4": "Extraction", "A5": "Extraction", "A6": "Evasion",
+              "A8": "Extraction", "A9": "Extraction", "A10": "Extraction"}
 
 
 @dataclass
@@ -105,16 +112,18 @@ class DemoController:
     # ---- Tab 1: live demo ----
     def run_query(self, query: str, attack_id: str, defense_ids: Sequence[str]) -> QueryResult:
         defenses = self.defense_subset(defense_ids)
+        # reset_session=False: the Live Demo is one persistent session, so D8's rate limit
+        # accumulates across repeated Asks (that's how you see it throttle).
         if attack_id and attack_id != "None":
             case = self.sample_case(attack_id)
             resp = self.pipeline.answer(case.user_input, injected_docs=case.injected_docs,
-                                        defenses=defenses)
+                                        defenses=defenses, reset_session=False)
             v = self.judge.verdict(case, resp)
             return QueryResult(case.user_input, resp.answer, resp.blocked, resp.retrieved,
                                resp.fired_defenses, str(case.goal.value),
                                v.success, v.refused,
                                bool(detect.CANARY_RE.search(resp.answer)), v.reason)
-        resp = self.pipeline.answer(query, defenses=defenses)
+        resp = self.pipeline.answer(query, defenses=defenses, reset_session=False)
         return QueryResult(query, resp.answer, resp.blocked, resp.retrieved,
                            resp.fired_defenses, None, None, None,
                            bool(detect.CANARY_RE.search(resp.answer)), "")

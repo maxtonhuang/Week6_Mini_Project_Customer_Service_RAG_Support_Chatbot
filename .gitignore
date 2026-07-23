@@ -16,12 +16,16 @@ artifacts/gen_cache.json
 # NOTE: the rest of artifacts/ (results.json, plots, CSVs, governance.md, screenshots)
 # IS committed so teammates without a GPU have the results, plots, and demo data.
 
-# --- Course materials — not part of the pipeline; do not redistribute ---
+# --- Course materials — reference only; NOT part of the pipeline; do NOT redistribute ---
+references/            # lecture PDFs + lab notebooks live here (reference for Claude, never committed)
 Lecture*.pdf
 Mini-project*.pdf
 Lab1_*.ipynb
 Lab2_*.ipynb
 Lab3_*.ipynb
+Lab4_*.ipynb
+Lab5_*.ipynb
+Lab6_*.ipynb
 
 # --- OS / tooling ---
 .DS_Store

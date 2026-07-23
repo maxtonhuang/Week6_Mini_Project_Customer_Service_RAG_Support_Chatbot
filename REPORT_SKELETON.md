@@ -83,7 +83,9 @@ _[Pre-filled candidate risks — keep at least two, expand the analysis.]_
 |---|---|---|---|
 | R1 | **Sensitive information disclosure** — the model reveals internal/canary documents or its own system prompt | OWASP **LLM06**; RMF Measure/Manage | ✍️ *internal docs share the same index as public FAQs → retrievable → leakable* |
 | R2 | **Prompt injection** (direct + indirect via poisoned retrieved content) | OWASP **LLM01**; RMF Map/Measure | ✍️ *untrusted user text and untrusted retrieved text are both fed to the LLM as if trusted* |
-| R3 | ✍️ *(optional) jailbreak / policy bypass, or availability/cost* | ✍️ | ✍️ |
+| R3 | **Broken access control** — `Doc.visibility=INTERNAL` was defined but never enforced, so agent-only docs could be retrieved into any user's prompt (the only guard was a post-hoc canary scan) | OWASP **LLM06 / LLM08**; RMF Manage | ✍️ *no visibility filter at retrieval → confidentiality boundary is only checked after generation. Fixed by D7.* |
+| R4 | **Membership inference & IP exposure** — confirming an internal doc/topic exists (A8) or a cloned index leaking a planted ownership fingerprint (A9) | OWASP **LLM06**; RMF Measure | ✍️ *weaker signals than full extraction; harder to catch by string match alone.* |
+| R5 | ✍️ *(optional) jailbreak / policy bypass, or availability/cost (rate-limiting → D8)* | ✍️ | ✍️ |
 
 **✍️ WRITE (team):** For each risk, state the *asset* at stake, the *attacker*, and the
 *impact* (confidentiality/integrity/availability). This is the "identify what can go
@@ -95,7 +97,8 @@ wrong" the rubric rewards.
 - **Capabilities / access:** black-box query access (a normal user); ability to plant content that may be retrieved (for indirect injection/poisoning).
 - **Attack surface:** the user input channel and the retrieved-context channel.
 
-_[Pre-filled attack surface → our 6 attack families:]_
+_[Pre-filled attack surface → the core families A1–A6, plus the extended-coverage attacks A8–A10
+(real Qwen3-8B numbers; see §3.6) and the adaptive attacker A7 (§2.3):]_
 
 | ID | Attack | Type (lab) | Surface | Goal |
 |---|---|---|---|---|
@@ -105,6 +108,9 @@ _[Pre-filled attack surface → our 6 attack families:]_
 | A4 | System-prompt extraction | Extraction | user input | leak the hidden prompt |
 | A5 | Canary / knowledge-base extraction | Extraction | user input + retrieval | leak confidential docs |
 | A6 | Obfuscated injection (evasion) | Evasion | user input | evade keyword filters |
+| A8 | Membership inference | Extraction | user input + retrieval | confirm an agent-only doc/topic exists |
+| A9 | Fingerprint / IP-ownership probe | Extraction | user input + retrieval | make the bot emit a planted `OWNER-FP-…` phrase |
+| A10 | Paraphrased system-prompt extraction | Extraction | user input | leak the prompt *in paraphrase* (dodges literal match) |
 
 ---
 
@@ -132,7 +138,15 @@ _[Pre-filled from `artifacts/results.json` — VERIFY before submitting.]_
 | A4 · System-prompt extraction | Extraction | 0 % |
 | A5 · Canary / knowledge-base extraction | Extraction | 24 % |
 | A6 · Obfuscated injection (evasion) | Evasion | 4 % |
-| **Overall** | | **25 %** |
+| A8 · Membership inference | Extraction | 30 % |
+| A9 · Fingerprint / IP-ownership probe | Extraction | **100 %** |
+| A10 · Paraphrased system-prompt extraction | Extraction | 0 % |
+| **Overall (A1–A10)** | | **31 %** |
+
+> **Reading the new families:** **A9 = 100 %** — the bot readily emits a planted `OWNER-FP-…`
+> ownership phrase that sits in the retrieved FAQ (an *output-side* leak). **A10 = 0 %** and **A4 = 0 %**
+> — the aligned Qwen3-8B resists revealing or paraphrasing its own instructions. **A8 = 30 %** — it
+> partially confirms an agent-only doc exists. All three drop to **0 %** under the full defence stack.
 
 **[FIGURE 2 — `artifacts/asr_undefended.png`]** per-attack ASR bar chart.
 
@@ -143,14 +157,15 @@ retrieved. See the UI screenshots `artifacts/ui_v2_livedemo_attack.png`.*
 ## 2.3 Adaptive attacker (A7) — robustness under adaptive attack
 _[Pre-filled: A7 is a PAIR-style mutate-retry loop. We run it two ways — with the **real
 Qwen3-8B as the mutator (LLM-driven)** and with an algorithmic heuristic mutator — and
-crucially **against the selected best defence stack (D4+D5)**: "can an adaptive attacker
+crucially **against the selected best defence stack (D2+D5)**: "can an adaptive attacker
 bypass our defences?". Both stay at **0 % ASR across all 6 rounds** — the stack holds.]_
 
 **[FIGURE 3 — `artifacts/adaptive_curve.png`]**
 
 **✍️ WRITE (team):** Interpret this as a *robustness-under-adaptive-attack* result — even
-an LLM red-teaming the defended pipeline over 6 rounds fails, because D4 (output filter)
-and D5 (groundedness) act **after** generation regardless of how the input is mutated.
+an LLM red-teaming the defended pipeline over 6 rounds fails, because D2 (input guardrail)
+plus D5 (groundedness — which checks the answer **after** generation) hold regardless of how the
+input is mutated.
 State honestly that the attacker is the same aligned model (self-red-team); a
 jailbroken/uncensored attacker model is future work.
 
@@ -167,7 +182,8 @@ jailbroken/uncensored attacker model is future work.
 > **Criterion 3 (30%): defences implemented, accuracy–robustness tradeoff, deployment controls tied to the identified risks.**
 
 ## 3.1 Defences implemented
-_[Pre-filled catalog — 6 defences at 3 hook points.]_
+_[Pre-filled catalog — 9 defences at 3 hook points. D1–D6 are the searched content filters;
+D7–D9 are targeted/deployment controls added in the hardening pass (§3.6).]_
 
 | ID | Defence | Hook point | Counters |
 |---|---|---|---|
@@ -177,10 +193,14 @@ _[Pre-filled catalog — 6 defences at 3 hook points.]_
 | D4 | Output filter — canary / system-prompt-leak / PII scan | post-generation | A4, A5 |
 | D5 | Groundedness check (answer must be supported by retrieved docs) | post-generation | A3, hallucination |
 | D6 | De-obfuscation / normalisation (NFKC, homoglyph fold, base64 decode) — runs before D2 | pre-retrieval | A6 |
+| D7 | **Visibility access-control** — drops `INTERNAL` docs before the prompt (**fixes** the enforcement gap) | post-retrieval | A5, A8 |
+| D8 | **Query-rate limit / budget** — per-session cap (deployment control; transparent in the sweep) | pre-retrieval | A7, high-volume probing |
+| D9 | **Semantic leak & fingerprint filter** — blocks `OWNER-FP` phrases + paraphrased prompt leaks | post-generation | A9, A10 |
 
 **✍️ WRITE (team):** Explain the 3-hook-point architecture and *why ordering matters*
 (D6 must run before D2 so the classifier sees decoded text). One sentence each on how a
-defence maps to the attack it counters.
+defence maps to the attack it counters. Note that **D7 is prevention** (never retrieve the
+internal doc) vs D4's after-the-fact detection — that distinction is worth a sentence.
 
 ## 3.2 Defence selection — two-stage search
 _[Pre-filled: all **64** defence-stack subsets were screened cheaply, then finalists
@@ -206,29 +226,44 @@ _[Pre-filled from `artifacts/results.json` — VERIFY.]_
 | A4 | 0 % | 0 % |
 | A5 | 24 % | 0 % |
 | A6 | 4 % | 0 % |
-| **Overall** | **25 %** | **0 %** |
+| A8 (membership) | 30 % | 0 % |
+| A9 (fingerprint) | 100 % | 0 % |
+| A10 (paraphrase) | 0 % | 0 % |
+| **Overall (A1–A10)** | **31 %** | **0 %** |
 
-**Table 3.2 — Selected best stack.**
+> The **full stack (D1–D9) drives every attack to 0 %** — including the new A8/A9/A10 (A8→D7/D4,
+> A9→D9, A10→D9). Note the full stack differs from the *minimal* stack the Pareto search selects (below):
+> the search is restricted to D1–D6, and **no D1–D6 filter can block A9** (an output-side ownership leak),
+> so the targeted D7–D9 are what close the new families.
 
-| Metric | Value |
-|---|---:|
-| **Best stack** | **D4 + D5** |
-| Robustness (1 − ASR) | **100 %** |
-| Utility (answer quality vs gold) | **0.45** |
-| False-refusal rate (benign wrongly blocked) | **0 %** |
-| Stacks evaluated | 64 |
-| Optuna-tuned D5 groundedness threshold | **0.18** (ASR 0 %, FRR 0 %) |
+**Table 3.2 — Minimal stack from the D1–D6 Pareto search vs the full stack.**
+
+| Metric | D1–D6 best (`D2 + D5`) | Full stack (`D1–D9`) |
+|---|---:|---:|
+| Overall ASR | **4 %** | **0 %** |
+| Robustness (1 − ASR) | **96 %** | **100 %** |
+| Utility (answer quality vs gold) | **0.44** | — |
+| False-refusal rate (benign wrongly blocked) | **5 %** | — |
+| Stacks evaluated | 64 (D1–D6 subsets) | n/a (all-on) |
+| Optuna-tuned thresholds | **D2→0.74, D5→0.26** | — |
+
+> The exhaustive search selects the *minimal* **D2+D5** (input guardrail + groundedness) at 96 %
+> robustness / 5 % FRR. Its **4 % residual is A9** — a planted ownership phrase in the retrieved doc
+> that no input/context/output-canary filter in D1–D6 catches. The targeted **D7 (access-control), D8
+> (rate-limit) and D9 (semantic/fingerprint filter)** — deliberately outside the 64-stack search — close
+> A8/A9/A10, so the **full stack reaches 0 % ASR**. That contrast *is* the accuracy–robustness story.
 
 > Utility & FRR are measured on **150 held-out benign questions guaranteed disjoint from
 > the KB** (no gold answer is an indexed document) — a true generalisation test, not
 > retrieval echo.
 
-**✍️ WRITE (team):** Interpret this — the search selected a *minimal* stack (D4 output
-filter + D5 groundedness) that neutralises every attack at **zero** false-refusal cost.
-Discuss the tradeoff: why this beats "turn everything on"; what utility 0.45 means (and
-its limitations as a metric); why D5 did not hurt FRR with a real model (answers are
-grounded) although it would offline. Note the search is over the sampled configs — a
-different seed/model may shift the choice.
+**✍️ WRITE (team):** Interpret this — the D1–D6 search selected a *minimal* stack (**D2 input
+guardrail + D5 groundedness**) at **96 % robustness / 5 % FRR**, but it cannot block the IP-fingerprint
+attack **A9** (no D1–D6 filter catches an output-side ownership phrase), leaving a 4 % residual. Adding
+the targeted **D7–D9** closes A8/A9/A10 so the **full stack hits 0 %**. Discuss the tradeoff: minimal
+D2+D5 vs full stack; what utility 0.44 means (and its limits as a metric); the small 5 % FRR the input
+guardrail costs; and that the search is over the sampled configs and attack mix — a different seed/model
+shifts the choice (indeed it moved from D4+D5 to **D2+D5** once A8–A10 entered the objective).
 
 ## 3.4 Deployment controls (map each risk → control)
 **✍️ WRITE (team):** Close the loop back to §1.3. For a real deployment, list controls
@@ -247,6 +282,34 @@ _[Pre-filled: NIST AI RMF re-scored on the **defended** system — `artifacts/go
 **✍️ WRITE (team):** Show the baseline→defended movement (🔴→🟢 on key subcategories) and
 state honest **limitations**: 8 B victim (results are model-specific), bounded attack
 banks, deterministic judge scope, offline vs real caveats, flat adaptive result.
+
+## 3.6 Extended coverage & limitations (security-review map)
+_[Pre-filled: a hardening pass widened coverage beyond the core A1–A6 / D1–D6 experiment. The new
+items were run on the **real Qwen3-8B** (RTX 5090) — see the numbers in §2.2 / §3.3. This subsection
+doubles as an honest "what we did / didn't do" table.]_
+
+**Implemented (this pass):**
+- **Access control (the #1 structural fix):** `Doc.visibility=INTERNAL` was defined but never enforced —
+  **D7** now drops internal docs at retrieval (prevention, not post-hoc scanning).
+- **New attack categories with deterministic judges:** **A8** membership inference, **A9** IP/ownership
+  fingerprinting (melted in from the teammate fingerprint prototype), **A10** paraphrased prompt extraction.
+- **Deployment/semantic defences:** **D8** per-session rate limit (throttles A7-style probing), **D9**
+  semantic-leak & fingerprint filter (catches paraphrased leaks A4/D4 miss, and `OWNER-FP` phrases).
+- **Hygiene:** HF **model-revision pinning** (supply-chain integrity) and **log redaction** (secrets are
+  scrubbed from persisted CSVs). The exhaustive Pareto search stays over D1–D6 (64 stacks); D7–D9 are
+  always-on in the full stack and toggleable in the labs.
+- **Prototype (not melted in):** a teammate **L1/L2 sophistication ladder** (`prototypes/sophisticated_*.py`)
+  is kept as a documented experiment for a future "raise ASR under D0, then D1/D2 knock it down" table.
+
+**Future work (scoped, not built — good limitations material):** perplexity/GCG-suffix filtering,
+paraphrase-and-compare, multi-sample self-consistency; ingestion-time quarantine / provenance
+allow-listing, embedding-space outlier detection, two-embedder cross-checking; output text watermarking
+(Kirchenbauer), retrieval-index canaries, moving policy values into a tool/policy lookup; MIA hardening
+(bucket `Doc.score`, access-control the vector index, DP noise, hash PII in canaries); multi-turn injection,
+DoS/input-length caps, tool-use authorization (LLM08); entailment-based groundedness, toxicity/moderation,
+human-escalation routing, citation-required answers, paraphrase-consistency + bias slice on the benign set.
+
+> Full decision log: `HARDENING_DECISIONS.md`.
 
 ---
 

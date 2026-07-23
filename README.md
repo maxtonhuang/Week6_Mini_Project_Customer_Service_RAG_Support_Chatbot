@@ -6,6 +6,12 @@ accuracy–robustness tradeoff. See [`MINI_PROJECT_PLAN.md`](./MINI_PROJECT_PLAN
 the full plan, rubric mapping, and threat model. Change history is in
 [`CHANGELOG.md`](./CHANGELOG.md).
 
+The suite covers **10 attacks** (A1–A6 + A8–A10, plus the A7 adaptive agent) across LLM/extraction/
+poisoning/evasion + membership-inference & IP-fingerprinting, and **9 defenses** (D1–D9) at three
+hook points — including **D7 visibility access-control** (fixes a real confidentiality gap), **D8**
+rate-limiting, and **D9** semantic-leak/fingerprint filtering. Scope + architecture decisions for the
+hardening pass are in [`HARDENING_DECISIONS.md`](./HARDENING_DECISIONS.md).
+
 ## Victim system
 
 | Component | Model / tool |
@@ -33,8 +39,9 @@ ragguard/
   corpus.py        # load Bitext, subsample, build knowledge base + benign eval set
   rag.py           # QwenLLM, EmbeddingRetriever, RagPipeline
   judge.py         # RuleJudge — rule-based attack-success oracle
-  attacks/         # A1-A6 static attacks + A7 adaptive attacker agent
-  defenses/        # D1-D6 defenses (3 hook points)
+  attacks/         # A1-A6 + A8-A10 static attacks + A7 adaptive attacker agent
+  defenses/        # D1-D9 defenses (3 hook points; D7 access-control, D8 rate-limit, D9 semantic-leak)
+  fingerprint.py   # IP/ownership fingerprint bank (A9 / D9)
   orchestrator.py  # attack x defense sweep, two-stage stack search, Pareto selection
   governance.py    # NIST AI RMF scorecard (baseline vs defended)
   report.py        # tables & plots
