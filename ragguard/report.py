@@ -9,6 +9,11 @@ import csv
 from . import detect, metrics
 
 
+def _attack_order(a: str):
+    """Sort key so attack IDs order numerically (A2 < A10), not as strings (A10 < A2)."""
+    return (int(a[1:]) if a[1:].isdigit() else 10**9, a)
+
+
 # ------------------------------ pure-text outputs ------------------------------
 
 def results_table(records) -> str:
@@ -16,7 +21,7 @@ def results_table(records) -> str:
     by_attack = metrics.group_asr(records, "attack_id")
     by_stack = metrics.group_asr(records, "defense_stack")
     lines = ["**ASR by attack**", "", "| Attack | ASR |", "|---|---|"]
-    for a in sorted(by_attack):
+    for a in sorted(by_attack, key=_attack_order):
         lines.append(f"| {a} | {by_attack[a] * 100:.0f}% |")
     lines += ["", "**ASR by defense stack**", "", "| Stack | ASR |", "|---|---|"]
     for s in sorted(by_stack):
@@ -49,7 +54,7 @@ def _plt():
 def asr_bar(records, path):
     plt = _plt()
     data = metrics.group_asr(records, "attack_id")
-    labels = sorted(data)
+    labels = sorted(data, key=_attack_order)
     vals = [data[k] * 100 for k in labels]
     fig, ax = plt.subplots(figsize=(7, 4))
     ax.bar(labels, vals, color="#c0392b")
@@ -61,7 +66,7 @@ def asr_bar(records, path):
 
 def attack_defense_heatmap(records, path):
     plt = _plt()
-    attacks = sorted({r.attack_id for r in records})
+    attacks = sorted({r.attack_id for r in records}, key=_attack_order)
     stacks = sorted({r.defense_stack for r in records}, key=lambda s: (s != "none", s))
     grid = []
     for a in attacks:
