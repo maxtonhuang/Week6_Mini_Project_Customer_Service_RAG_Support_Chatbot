@@ -90,6 +90,76 @@ def attack_defense_heatmap(records, path):
     return path
 
 
+def ladder_heatmap(ladder, path):
+    """Heatmap of overall ASR (%) across attack level (rows) x defence level (cols)
+    for the sophistication ladder. Mirrors ``attack_defense_heatmap``'s idiom.
+    """
+    plt = _plt()
+    attack_levels = ladder["attack_levels"]
+    defense_levels = ladder["defense_levels"]
+    rows = [f"L{al}" for al in attack_levels]
+    stacks = ladder["defense_level_stacks"]
+    cols = [f"D{dl}\n{stacks[str(dl)]}" for dl in defense_levels]
+    grid = []
+    for al in attack_levels:
+        row = []
+        for dl in defense_levels:
+            row.append(ladder["asr_overall"][str(al)][str(dl)] * 100)
+        grid.append(row)
+    fig, ax = plt.subplots(figsize=(1.6 * len(cols) + 2, 0.6 * len(rows) + 2))
+    im = ax.imshow(grid, cmap="RdYlGn_r", vmin=0, vmax=100, aspect="auto")
+    ax.set_xticks(range(len(cols))); ax.set_xticklabels(cols, rotation=45, ha="right", fontsize=7)
+    ax.set_yticks(range(len(rows))); ax.set_yticklabels(rows)
+    for i in range(len(rows)):
+        for j in range(len(cols)):
+            v = grid[i][j]
+            if v == v:  # not NaN
+                ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=8)
+    ax.set_title("ASR (%) — attack level × defence level")
+    fig.colorbar(im, ax=ax, label="ASR (%)")
+    fig.tight_layout(); fig.savefig(path, dpi=140); plt.close(fig)
+    return path
+
+
+def ladder_table_md(ladder) -> str:
+    """Markdown summary of the sophistication ladder: overall ASR by attack/defence
+    level, utility + FRR per defence level, and per-family ASR at the hardest
+    attack level (L2).
+    """
+    attack_levels = ladder["attack_levels"]
+    defense_levels = ladder["defense_levels"]
+    stacks = ladder["defense_level_stacks"]
+    asr_overall = ladder["asr_overall"]
+    utility = ladder["utility"]
+    frr = ladder["frr"]
+
+    lines = ["**Sophistication ladder — overall ASR (attack level × defence level)**", ""]
+    header = "| Attack level | " + " | ".join(
+        f"D{dl} · {stacks[str(dl)]}" for dl in defense_levels) + " |"
+    lines.append(header)
+    lines.append("|" + "---|" * (len(defense_levels) + 1))
+    for al in attack_levels:
+        row = [f"L{al}"]
+        for dl in defense_levels:
+            row.append(f"{asr_overall[str(al)][str(dl)] * 100:.0f}%")
+        lines.append("| " + " | ".join(row) + " |")
+
+    util_bits = " · ".join(f"D{dl} {utility[str(dl)]:.2f}" for dl in defense_levels)
+    frr_bits = " · ".join(f"D{dl} {frr[str(dl)] * 100:.0f}%" for dl in defense_levels)
+    lines += ["", f"_Utility: {util_bits}   |   FRR: {frr_bits}_"]
+
+    lines += ["", "**Per-family ASR at the hardest attack (L2)**", ""]
+    lines.append("| Family | " + " | ".join(f"D{dl}" for dl in defense_levels) + " |")
+    lines.append("|" + "---|" * (len(defense_levels) + 1))
+    for fam in ladder["families"]:
+        row = [fam]
+        for dl in defense_levels:
+            row.append(f"{ladder['asr'][fam]['2'][str(dl)] * 100:.0f}%")
+        lines.append("| " + " | ".join(row) + " |")
+
+    return "\n".join(lines)
+
+
 def pareto_plot(front, path, knee=None, all_points=None):
     plt = _plt()
     fig, ax = plt.subplots(figsize=(6, 5))
