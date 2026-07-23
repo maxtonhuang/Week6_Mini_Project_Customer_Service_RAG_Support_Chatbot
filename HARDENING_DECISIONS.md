@@ -101,3 +101,23 @@ Per the request to "use superpowers to organize and spawn agents": the **tightly
 edits would conflict, and fresh agents would re-derive context already loaded here. Delegation is used
 only for isolated end-stage work if it clearly parallelizes. This trades a bit of parallelism for
 correctness and coherence.
+
+## 7. Alignment with the course lectures & labs
+
+Cross-checked against the lecture PDFs + lab notebooks in `references/` (git-ignored — reference only).
+Every added attack/defence is grounded in a specific lecture/lab, **adapted to the RAG/LLM victim**:
+
+| Course source | Concept in the course | In RAGGuard |
+|---|---|---|
+| **L1** Governance | NIST AI RMF (Map/Measure/Manage) | Baseline-vs-defended governance scorecard (pre-existing). |
+| **L2/L3** Evasion I/II | Adversarial / evasion attacks | **A6** obfuscation + **D6** normalisation. *Deferred:* perplexity / GCG-suffix (token-optimization evasion — L2/L3's advanced case). |
+| **L4** + Lab3/Lab6 Poisoning | Data poisoning & backdoors | **A3** RAG poisoning + **D3** sanitisation. *Deferred:* ingestion-time quarantine / provenance (index-build defences). |
+| **L5** + Lab4 Privacy I | **Membership inference** (shadow models, "MIA beyond image"); model **inversion**; **DP-SGD** | **A8** membership inference — RAG-KB adaptation (membership via generation-confirmation, not classifier confidence). *Deferred (correctly):* DP-SGD / regularisation are **training-time** defences, out of scope for our **inference-only** victim; the retrieval-**score**-based MIA + `Doc.score` bucketing, and FAISS-vector **inversion** protection, are the RAG analogs (deferred). |
+| **L6** + Lab5 Privacy II | Model **extraction** (copycat); **watermarking vs fingerprinting** ("fingerprinting = identify without modifying the model") | **A9** = the **fingerprinting** idea (identify *our* bot/index without touching the model weights) + **D9**; **D8** rate-limit ↔ Lab5's "query budget raises extraction cost". *Deferred:* output-text **watermarking** (Kirchenbauer) and copycat model-extraction (a RAG bot exposes no weight/logit API to copy). *Nuance:* A9 plants marker docs in the **index** (watermark-like) and verifies ownership by probing (fingerprint-like) — a RAG hybrid of the two L6 ideas. |
+| **L7** LLM Safety & Security | LLM **security vs safety**; prompt injection / jailbreak / extraction; pre-training/fine-tuning/alignment-data attacks | **A1/A2** injection & jailbreak, **A4/A10** prompt extraction, **D1/D2/D4/D7/D9**. *Out of scope:* pre-training / fine-tuning / alignment-data attacks are **training-time** — we never train Qwen3-8B. *Deferred:* multi-turn injection, tool-use authorization (OWASP LLM08), toxicity/moderation. |
+| Labs 4/5 integrity | MD5 checksums + pinned library/model versions | **GEN/EMB/GUARD revision pinning** (supply-chain integrity). |
+
+**Takeaway:** the built items map 1-to-1 onto L5/L6/L7 (privacy/IP + LLM security), and the deferred
+items are mostly the course's **training-time** defences (DP-SGD, regularisation, alignment-data
+hardening) that don't apply to an inference-only RAG victim, or need an extra model/index-build stage —
+which is itself the honest, on-syllabus "limitations" story for the report.
