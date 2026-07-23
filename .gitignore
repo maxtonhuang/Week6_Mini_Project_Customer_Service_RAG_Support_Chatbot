@@ -31,3 +31,6 @@ Lab6_*.ipynb
 .DS_Store
 Thumbs.db
 .playwright-mcp/
+
+# SDD subagent-driven-development scratch ledger (local only)
+.superpowers/

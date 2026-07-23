@@ -98,7 +98,7 @@ wrong" the rubric rewards.
 - **Attack surface:** the user input channel and the retrieved-context channel.
 
 _[Pre-filled attack surface → the core families A1–A6, plus the extended-coverage attacks A8–A10
-(real Qwen3-8B numbers; see §3.6) and the adaptive attacker A7 (§2.3):]_
+(real Qwen3-8B numbers; see §3.7) and the adaptive attacker A7 (§2.3):]_
 
 | ID | Attack | Type (lab) | Surface | Goal |
 |---|---|---|---|---|
@@ -207,7 +207,8 @@ internal doc) vs D4's after-the-fact detection — that distinction is worth a s
 ## 3.2 Defence selection — two-stage search
 _[Pre-filled: all **64** defence-stack subsets were screened cheaply, then finalists
 re-evaluated at full sample size. **Optuna** (TPE, 15 trials) then tuned the winning
-stack's continuous threshold — D5 groundedness → **0.18** — holding ASR 0 % at FRR 0 %.]_
+**D2+D5** stack's continuous thresholds — **D2 → 0.74, D5 → 0.26** — reaching robustness
+**100 % / FRR 5 %** (matches Table 3.2).]_
 
 **[FIGURE 4 — `artifacts/heatmap.png`]** attack × defence ASR matrix.
 **[FIGURE 5 — `artifacts/pareto.png`]** utility vs robustness Pareto frontier (knee marked).

@@ -1,9 +1,17 @@
-"""Unit tests for ragguard.fullrun helpers (no GPU / pipeline needed)."""
-import pytest
+"""Unit tests for ragguard.fullrun helpers (no GPU / pipeline needed).
 
+Plain-assert style (no pytest import / fixtures) so both `run_tests.py` and `pytest` run it."""
 from ragguard import orchestrator
 from ragguard.fullrun import _pick_elapsed
 from ragguard.orchestrator import RunCancelled, _stop
+
+
+def _assert_raises(exc, fn, *args, **kwargs):
+    try:
+        fn(*args, **kwargs)
+    except exc:
+        return
+    raise AssertionError(f"expected {exc.__name__} to be raised")
 
 
 def test_resume_preserves_honest_elapsed():
@@ -33,19 +41,15 @@ def test_longer_partial_recompute_wins():
 def test_stop_helper_raises_only_when_asked():
     _stop(None)            # no callback -> no-op
     _stop(lambda: False)   # not stopping -> no-op
-    with pytest.raises(RunCancelled):
-        _stop(lambda: True)
+    _assert_raises(RunCancelled, _stop, lambda: True)
 
 
 def test_two_stage_search_aborts_before_any_work():
     # should_stop=True must raise at the first loop boundary, before touching the (None) pipeline.
-    with pytest.raises(RunCancelled):
-        orchestrator.two_stage_search(None, [], None, [object()], [],
-                                      screen_n=1, screen_benign=1, confirm_top=1,
-                                      should_stop=lambda: True)
+    _assert_raises(RunCancelled, orchestrator.two_stage_search, None, [], None, [object()], [],
+                   screen_n=1, screen_benign=1, confirm_top=1, should_stop=lambda: True)
 
 
 def test_matrix_aborts_before_any_work():
-    with pytest.raises(RunCancelled):
-        orchestrator.attack_defense_matrix(None, [], None, [object()], n=1,
-                                           should_stop=lambda: True)
+    _assert_raises(RunCancelled, orchestrator.attack_defense_matrix, None, [], None, [object()],
+                   n=1, should_stop=lambda: True)

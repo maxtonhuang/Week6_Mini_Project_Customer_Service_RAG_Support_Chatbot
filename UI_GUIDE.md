@@ -67,13 +67,13 @@ downloads), then open **http://127.0.0.1:7860** in a browser.
 
 ## 2. The big picture
 
-The app is a **customer-service chatbot that we attack and defend**. It has four tabs:
+The app is a **customer-service chatbot that we attack and defend**. It has five tabs:
 
 | Tab | What it's for |
 |---|---|
-| **1 · Live Demo** | The main show — ask questions, launch attacks, toggle defenses, watch it break and get fixed |
-| **2 · Attack Lab** | Run the whole attack suite and see a success-rate chart |
-| **3 · Defense Lab** | Search for the best defense combination |
+| **1 · Live Demo** | The main show — ask questions, launch attacks (at level L0/L1/L2), toggle defenses, watch it break and get fixed |
+| **2 · Attack Lab** | The whole attack suite's success rates + the **sophistication-ladder** heatmap (L0/L1/L2 × D0/D1/D2) |
+| **3 · Defense Lab** | Best defence stack, Optuna tuning, adaptive-attacker result, and the accuracy–robustness plots |
 | **4 · Governance** | The NIST AI RMF scorecard, before vs after defenses |
 | **5 · Run Pipeline** | One button to run the whole pipeline (Quick or Full) and fill every tab; saves to Google Drive if mounted |
 

@@ -1,8 +1,8 @@
 """Tests for the sophistication-ladder harness: level_cases (Task 1) sanity + run_ladder
-(Task 3), which fills the attack-level x defence-level matrix with ASR (+ utility/FRR)."""
-from __future__ import annotations
+(Task 3), which fills the attack-level x defence-level matrix with ASR (+ utility/FRR).
 
-import pytest
+Plain-assert style (no pytest import / fixtures) so both `run_tests.py` and `pytest` run it."""
+from __future__ import annotations
 
 
 def test_level_cases_all_families_all_levels():
@@ -61,8 +61,12 @@ def test_run_ladder_stops():
                       system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
     prod = {a.id: a for a in build_all_attacks(canary_docs=canaries)}
     benign_eval = [(d.text, "") for d in docs[:4]]
-    with pytest.raises(RunCancelled):
+    raised = False
+    try:
         run_ladder(pipe, judge, production=prod, canary_docs=canaries,
                    benign_eval=benign_eval, n=3,
                    system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS,
                    should_stop=lambda: True)
+    except RunCancelled:
+        raised = True
+    assert raised, "run_ladder should raise RunCancelled when should_stop() is True"

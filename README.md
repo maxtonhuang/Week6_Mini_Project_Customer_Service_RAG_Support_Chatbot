@@ -52,7 +52,7 @@ ragguard/
   orchestrator.py  # attack x defense sweep, two-stage stack search, Pareto selection
   governance.py    # NIST AI RMF scorecard (baseline vs defended)
   report.py        # tables & plots
-  app.py           # Gradio UI (4 tabs)
+  app.py           # Gradio UI (5 tabs: Live Demo · Attack Lab · Defense Lab · Governance · Run Pipeline)
 ```
 
 ## Design principle: models behind interfaces

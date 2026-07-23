@@ -20,7 +20,7 @@ on the **RTX 5090** (bf16, batch 4); `artifacts/results.json` now holds **real Q
 | PR | What it is | Decision |
 |---|---|---|
 | **#1** fingerprint/ownership prototype (`prototypes/fingerprint_light.py`) | Standalone Lab5-style ownership probe; plants `OWNER-FP-…` phrases, measures Key-Response-Rate; "melt-in to A8/D7 later". | **Merge** (additive, `prototypes/` only) **and melt the concept in** as attack **A9** + defence **D9**. |
-| **#2** L1/L2 sophisticated attack/defence ladder (`prototypes/sophisticated_*.py`) | A larger "levels" schema (raise ASR under D0, then D1/D2 knock it down). | **Merge as a documented prototype**; do **not** fully melt the ladder framework into the main registries this pass — it's a distinct experiment better reviewed by the team. Referenced as future work. |
+| **#2** L1/L2 sophisticated attack/defence ladder (`prototypes/sophisticated_*.py`) | A larger "levels" schema (raise ASR under D0, then D1/D2 knock it down). | **Merge as a documented prototype**; do **not** fully melt the ladder framework into the main registries this pass — it's a distinct experiment better reviewed by the team. Referenced as future work. **➡️ SUPERSEDED (later pass): the ladder was fully implemented and melted into the main suite** (`attacks/levels.py`, defence levels D0/D1/D2 with new D10/D11, `ladder.py`) and folded into `results.json["ladder"]` + the Attack Lab UI — see `CHANGELOG.md` and `REPORT_SKELETON.md` §3.4. |
 
 Both PRs only **add** files under `prototypes/` (no deletions, no pipeline/artifact changes), so merging is safe. The one conflict (`prototypes/__init__.py` created by both) is resolved to a single stub.
 

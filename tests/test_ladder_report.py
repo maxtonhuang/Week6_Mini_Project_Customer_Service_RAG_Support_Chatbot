@@ -1,4 +1,6 @@
-import pytest
+"""Plain-assert style (no pytest import / fixtures) so both `run_tests.py` and `pytest` run it."""
+import os
+import tempfile
 
 _LADDER = {
     "families": ["A1", "A9"], "attack_levels": [0, 1, 2], "defense_levels": [0, 1, 2], "n": 3,
@@ -20,9 +22,12 @@ def test_ladder_table_md_contains_levels():
     assert "0.70" in md or "0.7" in md          # a utility figure
     assert "A9" in md                            # per-family row
 
-def test_ladder_heatmap_writes_png(tmp_path):
-    pytest.importorskip("matplotlib")
+def test_ladder_heatmap_writes_png():
+    try:
+        import matplotlib  # noqa: F401
+    except ImportError:
+        return  # skip gracefully when matplotlib isn't installed (offline sandbox)
     from ragguard.report import ladder_heatmap
-    p = ladder_heatmap(_LADDER, tmp_path / "ladder.png")
-    import os
-    assert os.path.exists(p) and os.path.getsize(p) > 0
+    with tempfile.TemporaryDirectory() as d:
+        p = ladder_heatmap(_LADDER, os.path.join(d, "ladder.png"))
+        assert os.path.exists(p) and os.path.getsize(p) > 0
