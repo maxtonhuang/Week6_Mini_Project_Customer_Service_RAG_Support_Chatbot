@@ -399,7 +399,7 @@ def build_app(controller: DemoController):
                         "(🔴 gap · 🟡 partial · 🟢 managed).")
             gov = gr.Markdown(controller.governance_markdown())
 
-        with gr.Tab("5 · Run pipeline") as run_tab:
+        with gr.Tab("5 · Run Pipeline") as run_tab:
             gr.Markdown(
                 "Run the whole red-team → blue-team pipeline and populate every tab. "
                 "Results + resumable checkpoints save to `artifacts/` — or to **Google Drive** "
@@ -464,8 +464,23 @@ def build_app(controller: DemoController):
                 yield _render(f"[ still running -- elapsed {el // 60}m{el % 60:02d}s ]")
 
         _idle = "_Idle — pick a profile and press ▶ Run full pipeline._"
+
+        def _reload():
+            # Re-read results.json from disk (e.g. after an external run_full.py) into every
+            # panel, and confirm in the log so it's clearly not a no-op.
+            vals = _refresh_all()
+            r = controller.results
+            if r:
+                msg = ("```\n[reload] saved results loaded from artifacts/  |  undefended "
+                       f"{r.get('asr_undefended_overall', 0):.0%} -> {r.get('asr_fullstack_overall', 0):.0%}"
+                       f"  |  best stack {r.get('best_stack', '-')}\n```")
+            else:
+                msg = "_No saved results in artifacts/ yet — run the pipeline first._"
+            controller._run_log = msg
+            return (*vals, msg)
+
         run_btn.click(_run_gen, profile, run_log).then(_refresh_all, None, results_out)
-        reload_btn.click(_refresh_all, None, results_out)
+        reload_btn.click(_reload, None, results_out + [run_log])
         # Re-show the in-progress (or last) run whenever the Run tab is re-opened —
         # the run itself keeps going server-side regardless of which tab is visible.
         run_tab.select(lambda: controller._run_log or _idle, None, run_log)

@@ -75,7 +75,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 | **2 · Attack Lab** | Run the whole attack suite and see a success-rate chart |
 | **3 · Defense Lab** | Search for the best defense combination |
 | **4 · Governance** | The NIST AI RMF scorecard, before vs after defenses |
-| **5 · Run pipeline** | One button to run the whole pipeline (Quick or Full) and fill every tab; saves to Google Drive if mounted |
+| **5 · Run Pipeline** | One button to run the whole pipeline (Quick or Full) and fill every tab; saves to Google Drive if mounted |
 
 ---
 
@@ -179,13 +179,13 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ---
 
-## 7. Tab 5 — Run pipeline (one button)
+## 7. Tab 5 — Run Pipeline (one button)
 
 This runs the **whole** red-team → blue-team pipeline and fills in every other tab — no notebook cell needed.
 
-![RAGGuard Run pipeline tab — profile selector, Run button, and live progress log](artifacts/ui_v3_run.png)
+![RAGGuard Run Pipeline tab — profile selector, Run button, and live progress log](artifacts/ui_v3_run.png)
 
-*The **Run pipeline** tab: pick **Quick** or **Full**, press **▶ Run full pipeline**, and watch the live log; the Attack/Defense/Governance tabs refresh when it finishes.*
+*The **Run Pipeline** tab: pick **Quick** or **Full**, press **▶ Run full pipeline**, and watch the live log; the Attack/Defense/Governance tabs refresh when it finishes.*
 
 - Pick a **Profile**:
   - **Quick (~minutes)** — reduced sample sizes; great for a demo and enough to populate all tabs.

@@ -117,7 +117,7 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 3. **We fix it** — tick the defence that counters it (**D2+D5** for A1; **D4** for A5 canary; **D9** for A9 fingerprint) → 🟢 *BLOCKED*.
 4. **It still works** — re-ask the benign question, defences on → still correct.
 - Optionally flash **Tab 2 (named ASR table)** and **Tab 3 (Pareto)** for 5 seconds each.
-- *(The UI also has a **Tab 5 · Run pipeline** one-click button — pre-run it to populate results; don't run it live, as even Quick takes minutes.)*
+- *(The UI also has a **Tab 5 · Run Pipeline** one-click button — pre-run it to populate results; don't run it live, as even Quick takes minutes.)*
 - ✍️ Rehearse to hit 2.5 min. One person drives, one narrates.
 
 ### Slide 11 — Takeaways  ·  ~25s
