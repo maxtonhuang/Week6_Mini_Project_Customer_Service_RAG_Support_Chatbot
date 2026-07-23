@@ -27,6 +27,7 @@ judge = RuleJudge(canary_tokens=cm.canary_tokens(canaries),
 attacks = build_all_attacks(canary_docs=canaries)
 defenses = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
 
+config.seed_artifacts_from_repo()   # seed committed results/plots into an empty (e.g. Drive) artifact dir
 res_path = config.artifact_dir() / "results.json"
 results = json.loads(res_path.read_text(encoding="utf-8")) if res_path.exists() else {}
 ctrl = DemoController(pipe, attacks, judge, defenses, canaries, benign, results=results)
