@@ -240,17 +240,43 @@ class DemoController:
                 + "".join(stats) + "</div>")
 
     def best_summary_md(self) -> str:
-        b = self.results.get("best") or {}
+        r = self.results
+        b = r.get("best") or {}
         if not b:
             return "_No saved results yet — run `run_full.py` (or `00_MAIN.ipynb`) first._"
-        return (
-            f"### Best defence stack: `{b.get('stack', '-')}`\n"
+        lines = [
+            f"### Best defence stack: `{b.get('stack', '-')}`",
             f"- robustness **{b.get('robustness', 0):.0%}** · "
-            f"utility **{b.get('utility', 0):.2f}** · FRR **{b.get('frr', 0):.0%}**\n"
-            f"- overall ASR **{self.results.get('asr_undefended_overall', 0):.0%} → "
-            f"{self.results.get('asr_fullstack_overall', 0):.0%}** · "
-            f"{self.results.get('n_stacks_screened', 0)} stacks screened"
-        )
+            f"utility **{b.get('utility', 0):.2f}** · FRR **{b.get('frr', 0):.0%}**",
+            f"- overall ASR **{r.get('asr_undefended_overall', 0):.0%} → "
+            f"{r.get('asr_fullstack_overall', 0):.0%}** (undefended → full D1–D9 stack) · "
+            f"{r.get('n_stacks_screened', 0)} of 64 stacks screened",
+        ]
+        # Optuna threshold tuning (a whole phase — surface its result)
+        tt = r.get("tuned_thresholds") or {}
+        tm = r.get("tuned_metrics") or {}
+        if tt:
+            thr = " · ".join(f"`{k}`={v:.2f}" for k, v in tt.items())
+            tail = (f" → robustness {tm.get('robustness', 0):.0%} / FRR {tm.get('frr', 0):.0%}"
+                    if tm else "")
+            lines.append(f"- **Optuna-tuned thresholds:** {thr}{tail}")
+        else:
+            lines.append("- **Optuna:** best stack has no continuous thresholds to tune")
+        # Adaptive attacker (A7) vs the best stack — LLM-driven + heuristic baseline
+        curve = r.get("adaptive_curve") or []
+        hcurve = r.get("adaptive_curve_heuristic") or []
+        if curve:
+            hb = f" · heuristic **{hcurve[-1]:.0%}**" if hcurve else ""
+            lines.append(
+                f"- **Adaptive attacker** (A7) vs `{r.get('adaptive_vs_stack', '-')}`, "
+                f"{len(curve)} rounds: cumulative ASR LLM **{curve[-1]:.0%}**{hb} "
+                f"— curve `{' → '.join(f'{x:.0%}' for x in curve)}`")
+        el = r.get("elapsed_s")
+        meta = f"{r.get('mode', '?')} run · model `{r.get('model', '')}`"
+        if isinstance(el, (int, float)):
+            meta += f" · full-run compute {el / 60:.1f} min"
+        lines.append(f"\n<sub>{meta}</sub>")
+        return "\n".join(lines)
 
     def evaluate_stack_quick(self, defense_ids, n: int = 4, benign_k: int = 8) -> str:
         """Fast live evaluation of one chosen defence stack (small samples)."""
@@ -465,14 +491,16 @@ def build_app(controller: DemoController):
             gr.Markdown(
                 "<span class='section-hint'>Both profiles run the <b>same phases</b> on all 9 attacks and "
                 "every defence (undefended suite · full-stack defence · 64-stack search · Optuna tuning · "
-                "adaptive attacker) — only the <b>sample sizes</b> differ, so Full is more statistically "
-                "reliable but slower.<br>"
+                "adaptive attacker · <b>sophistication ladder</b> L0/L1/L2 × D0/D1/D2) — only the "
+                "<b>sample sizes</b> differ, so Full is more statistically reliable but slower.<br>"
                 f"&nbsp;•&nbsp;<b>Quick</b> — {_q['n']} prompts/attack · {_q['rounds']} adaptive rounds · defence "
-                f"search screens each stack on {_q['screen_n']} attacks + {_q['screen_benign']} benign: a fast "
-                "pass that still fills every tab, for demos &amp; sanity checks (minutes, not hours).<br>"
+                f"search screens each stack on {_q['screen_n']} attacks + {_q['screen_benign']} benign · "
+                f"ladder {min(_q['n'], 12)}/cell: a fast pass that still fills every tab, for demos &amp; "
+                "sanity checks (minutes, not hours).<br>"
                 f"&nbsp;•&nbsp;<b>Full</b> — {_f['n']} prompts/attack · {_f['rounds']} rounds · {_f['screen_n']} "
-                f"attacks + {_f['screen_benign']} benign per screen: the report-grade numbers you cite in the "
-                "write-up (hours, and resumable if the runtime disconnects).</span>")
+                f"attacks + {_f['screen_benign']} benign per screen · ladder {min(_f['n'], 12)}/cell: the "
+                "report-grade numbers you cite in the write-up (hours, and resumable if the runtime "
+                "disconnects).</span>")
             fresh = gr.Checkbox(
                 value=False,
                 label="Start fresh — ignore saved checkpoints and recompute every phase")

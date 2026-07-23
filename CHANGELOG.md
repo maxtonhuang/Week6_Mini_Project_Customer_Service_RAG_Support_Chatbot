@@ -5,6 +5,30 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [branch feat/sophistication-ladder] — 2026-07-23 · L0/L1/L2 × D0/D1/D2 sophistication ladder
+> Melted into the main suite; folded into `results.json["ladder"]`. **Real 5090 numbers** (overall ASR,
+> mean across 9 families, attack level × defence level): **L0** 31/6/0% · **L1** 44/0/0% · **L2** 48/0/0%
+> — smarter attacks raise ASR undefended, stronger defences knock it to 0%, at **utility 0.45 / FRR 0%**
+> across every defence level. Ladder phase computed in ~5.7 min (cache-assisted resume).
+### Added
+- **Attack sophistication levels L0/L1/L2** (`ragguard/attacks/levels.py`, `level_cases`): L0 = production
+  attacks; L1/L2 reuse the reviewed catalogue for A1–A6 and native banks for A8/A9/A10. Same goal/markers
+  per level so every cell stays judge-scorable. (A7 adaptive is measured by its own curve, not the ladder.)
+- **Defence levels D0/D1/D2** (`build_defense_level`): D0 none · D1 content filters (D1+D2+D4+D6) · D2
+  defence-in-depth (D1–D7, D9 + new **D10 instruction-hierarchy** + **D11 decode-then-scan**).
+- **Ladder harness** (`ragguard/ladder.py`, `run_ladder`): fills the `ASR[attack_level × defence_level]`
+  matrix (+ utility/FRR per defence level) for all 9 families; cache-backed and **Stop-able**.
+- **Folded into the full run**: new checkpointed `ladder` phase in `fullrun.run` (7 checkpoints now) →
+  `results.json["ladder"]` + `ladder_heatmap.png`; `report.ladder_heatmap` / `ladder_table_md`.
+- **UI**: a **Sophistication Ladder** section in the Attack Lab tab (heatmap + per-cell table) and an
+  **L0/L1/L2 level dropdown** in the Live Demo (fire any attack at any level). Tests: `test_ladder*.py`.
+### Fixed
+- **Colab blank graphs**: `config.seed_artifacts_from_repo()` copies the committed `results.json`/plots
+  into an empty active artifact dir (e.g. Drive mounted-but-empty) at launch, so teammates see the
+  shipped results regardless of `USE_DRIVE`. Called from `launch()` + `serve_app.py`.
+
+---
+
 ## [main] — 2026-07-23 · Run-tab clarity: profile-aware button + Start-fresh
 ### Changed
 - **Run button label now follows the profile** — **▶ Run Quick pipeline** / **▶ Run Full pipeline**

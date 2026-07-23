@@ -83,7 +83,7 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ![RAGGuard Live Demo tab — controls on the left, result on the right](artifacts/ui_v3_livedemo.png)
 
-*The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A10`) → **③ Enable defences** (tick any of D1–D9). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
+*The **Live Demo** tab. Work down the left column: **① Ask a question** (type the customer message) → **② Launch an attack** (dropdown: `None` for a normal query, or `A1`–`A10`; and a **Sophistication level** dropdown — **L0** blunt / **L1** intermediate / **L2** advanced — that applies when an attack is chosen) → **③ Enable defences** (tick any of D1–D9). Then click **Ask** to run once, or **▶ Run demo script** to auto-play the four beats. The answer and verdict appear under **Result** on the right.*
 
 ![RAGGuard in dark mode — the header status chips stay readable in both themes](artifacts/ui_v3_livedemo_dark.png)
 
@@ -154,6 +154,17 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 - To run live: move the **Cases per attack** slider (start small, e.g. 10) → click **Run attack sweep**.
 - Higher bars = more successful attacks against the undefended bot.
 
+### 🪜 Sophistication ladder (L0/L1/L2 × D0/D1/D2)
+Below the chart is the **sophistication-ladder** heatmap + table from the last full run: attacks at three
+sophistication levels (**L0** blunt → **L1** one technique → **L2** composed) against three defence levels
+(**D0** none → **D1** content filters → **D2** defence-in-depth). Each cell is ASR; read it top-left (blunt
+attack, no defence) to bottom-right (hardest attack, strongest defence).
+- The story: **smarter attacks raise ASR when undefended** (overall D0: L0 31% → L1 44% → L2 48%), and
+  **stronger defences knock it back to 0%** (D1/D2 columns), at **no utility/false-refusal cost** on this run.
+- The per-family table shows which attacks are dangerous undefended (A5/A8/A9 reach 100% at L2·D0) and how
+  the defence levels neutralise them.
+- Populate it by pressing **Run** on the **Run Pipeline** tab (the ladder is one of the run's phases).
+
 > The live sweep calls the model many times, so it takes a little while. Fine for exploring; for a live presentation, show the pre-made chart in `artifacts/asr_undefended.png` instead.
 
 ---
@@ -191,7 +202,7 @@ This runs **all attacks + defenses** across the whole pipeline and fills in ever
   - **Quick (~minutes)** — smaller samples (8 prompts/attack · 3 adaptive rounds · defence search screens each stack on 6 attacks + 8 benign); great for a demo and enough to populate every tab.
   - **Full (~hours, resumable)** — report-grade samples (50 prompts/attack · 6 rounds · 15 attacks + 20 benign per screen): the numbers you cite in the write-up. If the Colab runtime disconnects mid-run, just press the button again — it **resumes from the last completed phase**.
 - **Resuming vs. a fresh run.** Every phase is checkpointed to `artifacts/full[_fast]/`, so a re-run loads completed phases from disk — if a run already finished, pressing again completes **in seconds** rather than recomputing (the button then reads **↻ Resume … (n/6 saved)** to make this obvious). To force a full recompute, tick **Start fresh — ignore saved checkpoints** before pressing (or delete the `artifacts/full[_fast]/` folder).
-- Press the run button. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots), with a **live elapsed timer** that ticks every few seconds so it never looks frozen — even during the long 64-stack search. If it resumed, the first log line says so and lists which checkpoints it loaded.
+- Press the run button. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → **sophistication ladder** → plots), with a **live elapsed timer** that ticks every few seconds so it never looks frozen — even during the long 64-stack search. If it resumed, the first log line says so and lists which checkpoints it loaded.
 - **⏹ Stop run** cancels a run in progress. It halts at the next phase/step boundary (so a long search stops within a stack or two, not instantly) and — importantly — **does not overwrite your saved results**: `results.json` is only written on a *complete* run, so a stop leaves the previous numbers intact. Completed phases stay checkpointed, so pressing Run afterwards **resumes** from where you stopped.
 - When it finishes, the **Attack Lab**, **Defense Lab** and **Governance** tabs refresh automatically with the new numbers and plots.
 - **🔄 Reload saved results** re-reads the last saved run — handy when you reopen the UI and want the previous results back.

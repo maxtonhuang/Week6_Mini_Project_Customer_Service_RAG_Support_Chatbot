@@ -148,14 +148,16 @@ def ladder_table_md(ladder) -> str:
     frr_bits = " · ".join(f"D{dl} {frr[str(dl)] * 100:.0f}%" for dl in defense_levels)
     lines += ["", f"_Utility: {util_bits}   |   FRR: {frr_bits}_"]
 
-    lines += ["", "**Per-family ASR at the hardest attack (L2)**", ""]
-    lines.append("| Family | " + " | ".join(f"D{dl}" for dl in defense_levels) + " |")
-    lines.append("|" + "---|" * (len(defense_levels) + 1))
+    lines += ["", "**Per-family ASR (every attack level × defence level)**", ""]
+    lines.append("| Family | Attack level | " + " | ".join(f"D{dl}" for dl in defense_levels) + " |")
+    lines.append("|" + "---|" * (len(defense_levels) + 2))
     for fam in ladder["families"]:
-        row = [fam]
-        for dl in defense_levels:
-            row.append(f"{ladder['asr'][fam]['2'][str(dl)] * 100:.0f}%")
-        lines.append("| " + " | ".join(row) + " |")
+        for i, al in enumerate(attack_levels):
+            fam_cell = fam if i == 0 else ""          # show the family once per group
+            row = [fam_cell, f"L{al}"]
+            for dl in defense_levels:
+                row.append(f"{ladder['asr'][fam][str(al)][str(dl)] * 100:.0f}%")
+            lines.append("| " + " | ".join(row) + " |")
 
     return "\n".join(lines)
 
