@@ -203,13 +203,20 @@ class DemoController:
     def header_stats_html(self) -> str:
         r = self.results
         pct = lambda x: f"{x*100:.0f}%" if isinstance(x, (int, float)) else "—"
-        chips = [
-            f'<span class="chip"><b>Model</b> {html.escape(str(r.get("model", config.GEN_MODEL)))}</span>',
-            f'<span class="chip red"><b>Undefended ASR</b> {pct(r.get("asr_undefended_overall"))}</span>',
-            f'<span class="chip green"><b>Defended ASR</b> {pct(r.get("asr_fullstack_overall"))}</span>',
-            f'<span class="chip teal"><b>Best stack</b> {html.escape(str(r.get("best_stack") or "—"))}</span>',
+
+        def stat(label: str, value, tone: str = "") -> str:
+            cls = ("stat " + tone).strip()
+            return (f'<span class="{cls}"><span class="lbl">{html.escape(label)}</span>'
+                    f'<span class="val">{html.escape(str(value))}</span></span>')
+        # Flat label+value read-out (not clickable pills): a summary strip, not buttons.
+        stats = [
+            stat("Model", r.get("model", config.GEN_MODEL)),
+            stat("Undefended ASR", pct(r.get("asr_undefended_overall")), "red"),
+            stat("Defended ASR", pct(r.get("asr_fullstack_overall")), "green"),
+            stat("Best stack", r.get("best_stack") or "—", "teal"),
         ]
-        return '<div id="rg-stats">' + "".join(chips) + "</div>"
+        return ('<div id="rg-stats" role="group" aria-label="Run summary (read-only)">'
+                + "".join(stats) + "</div>")
 
     def best_summary_md(self) -> str:
         b = self.results.get("best") or {}
@@ -273,19 +280,27 @@ def build_app(controller: DemoController):
 
     _css = (
         ".gradio-container{max-width:1160px !important;margin:0 auto !important;}"
-        "#rg-stats{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 12px;}"
-        # Chips use explicit per-theme colours (not theme tokens) so contrast holds in BOTH
-        # light and dark mode — a `.dark` override sets readable dark surfaces + light text.
-        "#rg-stats .chip{padding:5px 12px;border-radius:999px;font-size:13px;font-weight:500;"
-        "background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;}"
-        "#rg-stats .chip b{font-weight:700;}"
-        "#rg-stats .chip.red{background:#fee2e2;color:#7f1d1d;border-color:#fca5a5;}"
-        "#rg-stats .chip.green{background:#dcfce7;color:#14532d;border-color:#86efac;}"
-        "#rg-stats .chip.teal{background:#ccfbf1;color:#134e4a;border-color:#5eead4;}"
-        ".dark #rg-stats .chip{background:#1e293b;color:#e2e8f0;border-color:#475569;}"
-        ".dark #rg-stats .chip.red{background:#3f1414;color:#fecaca;border-color:#b91c1c;}"
-        ".dark #rg-stats .chip.green{background:#0f2e1a;color:#bbf7d0;border-color:#16a34a;}"
-        ".dark #rg-stats .chip.teal{background:#0d2e2b;color:#99f6e4;border-color:#14b8a6;}"
+        # Header = a flat read-only STAT STRIP (label + value, divided), deliberately NOT
+        # pill/filled buttons — so it reads as a summary read-out, not clickable controls.
+        # Colours are explicit per-theme (not theme tokens) so contrast holds ≥4.5:1 in both.
+        "#rg-stats{display:flex;flex-wrap:wrap;align-items:center;margin:2px 0 14px;"
+        "font-size:13px;cursor:default;}"
+        "#rg-stats .stat{display:inline-flex;align-items:baseline;gap:7px;padding:0 18px;"
+        "border-right:1px solid #e2e8f0;}"
+        "#rg-stats .stat:first-child{padding-left:0;}"
+        "#rg-stats .stat:last-child{border-right:none;padding-right:0;}"
+        "#rg-stats .stat .lbl{color:#64748b;font-size:11px;font-weight:600;"
+        "text-transform:uppercase;letter-spacing:.04em;}"
+        "#rg-stats .stat .val{font-weight:700;color:#0f172a;}"
+        "#rg-stats .stat.red .val{color:#b91c1c;}"
+        "#rg-stats .stat.green .val{color:#15803d;}"
+        "#rg-stats .stat.teal .val{color:#0f766e;}"
+        ".dark #rg-stats .stat{border-right-color:#334155;}"
+        ".dark #rg-stats .stat .lbl{color:#94a3b8;}"
+        ".dark #rg-stats .stat .val{color:#e2e8f0;}"
+        ".dark #rg-stats .stat.red .val{color:#f87171;}"
+        ".dark #rg-stats .stat.green .val{color:#4ade80;}"
+        ".dark #rg-stats .stat.teal .val{color:#2dd4bf;}"
         ".step-card{border-radius:12px !important;padding:8px 14px 12px !important;"
         "margin-bottom:10px !important;border:1px solid var(--border-color-primary) !important;}"
         ".attack-card{border-left:4px solid #dc2626 !important;}"
@@ -409,7 +424,11 @@ def build_app(controller: DemoController):
                 profile = gr.Radio(["Quick (~minutes)", "Full (~hours, resumable)"],
                                    value="Quick (~minutes)", label="Profile", scale=3)
                 run_btn = gr.Button("▶ Run full pipeline", variant="primary", scale=1)
-            reload_btn = gr.Button("🔄 Reload saved results", size="sm")
+            reload_btn = gr.Button("🔄 Reload saved results into the other tabs", size="sm")
+            gr.Markdown("<span class='section-hint'>Re-reads the last saved `results.json` and refreshes the "
+                        "header stats + the **Attack Lab / Defense Lab / Governance** tabs — use it after a "
+                        "**Full** run here, or after running `run_full.py` in a terminal. (It doesn't change "
+                        "anything on this tab; the confirmation appears in the log below.)</span>")
             run_log = gr.Markdown("_Idle — pick a profile and press ▶ Run full pipeline._")
 
         # ---- Run tab refreshes every results-backed panel on completion ----
