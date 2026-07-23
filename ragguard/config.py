@@ -102,6 +102,49 @@ def cache_dir() -> pathlib.Path:
     return d
 
 
+# Committed view-artifacts a fresh clone ships (results + plots + tables). Copied into an
+# empty active artifact_dir so the UI shows the shipped numbers even on Colab with an empty Drive.
+_SEED_FILES = ("results.json", "governance.md")
+_SEED_GLOBS = ("*.png", "*.csv")
+
+
+def seed_artifacts_from_repo() -> bool:
+    """Seed the active ``artifact_dir()`` from the repo's committed ``./artifacts`` when it has
+    no ``results.json`` of its own.
+
+    Fixes the Colab case where ``USE_DRIVE=True`` mounts Drive, so ``artifact_dir()`` points at
+    an *empty* ``/content/drive/MyDrive/ragguard`` and the UI shows blank graphs even though the
+    cloned repo's ``./artifacts`` holds the shipped results + plots. Copies them across once;
+    a later real run still overwrites them (and persists to Drive). No-op locally (where the
+    active dir already IS ``./artifacts``) or once the active dir has its own results. Returns
+    True iff it copied anything.
+    """
+    import shutil
+    dst = artifact_dir()
+    src = repo_root() / "artifacts"
+    if (dst / "results.json").exists():
+        return False                      # active dir already has real results
+    if dst.resolve() == src.resolve():
+        return False                      # active dir IS the repo artifacts (local) — nothing to do
+    if not (src / "results.json").exists():
+        return False                      # nothing shipped to seed from
+    copied = False
+    for name in _SEED_FILES:
+        f = src / name
+        if f.exists():
+            try:
+                shutil.copy2(f, dst / f.name); copied = True
+            except OSError:
+                pass
+    for pattern in _SEED_GLOBS:
+        for f in src.glob(pattern):
+            try:
+                shutil.copy2(f, dst / f.name); copied = True
+            except OSError:
+                pass
+    return copied
+
+
 def device() -> str:
     """Best available device string. Lazy torch import so tests don't need torch."""
     try:

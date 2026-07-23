@@ -109,13 +109,34 @@ class DemoController:
     def sample_case(self, attack_id: str):
         return self.attacks_by_id[attack_id].generate(1)[0]
 
+    def sample_case_at_level(self, attack_id: str, level: int = 0):
+        """One attack case at sophistication level 0/1/2 for the Live Demo. Level 0 (or a
+        family not on the ladder, e.g. adaptive A7) falls back to the production L0 case."""
+        if not level:
+            return self.sample_case(attack_id)
+        from .attacks.levels import LADDER_FAMILIES, level_cases
+        if attack_id not in LADDER_FAMILIES:
+            return self.sample_case(attack_id)
+        return level_cases(attack_id, int(level), 1,
+                           production=self.attacks_by_id, canary_docs=self.canaries)[0]
+
+    def ladder_markdown(self) -> str:
+        """Markdown table of the sophistication ladder (from the last saved run), or a hint."""
+        lad = self.results.get("ladder")
+        if not lad:
+            return ("_No ladder data yet — run the pipeline on the **Run Pipeline** tab "
+                    "(it computes the L0/L1/L2 × D0/D1/D2 matrix)._")
+        from . import report
+        return report.ladder_table_md(lad)
+
     # ---- Tab 1: live demo ----
-    def run_query(self, query: str, attack_id: str, defense_ids: Sequence[str]) -> QueryResult:
+    def run_query(self, query: str, attack_id: str, defense_ids: Sequence[str],
+                  level: int = 0) -> QueryResult:
         defenses = self.defense_subset(defense_ids)
         # reset_session=False: the Live Demo is one persistent session, so D8's rate limit
         # accumulates across repeated Asks (that's how you see it throttle).
         if attack_id and attack_id != "None":
-            case = self.sample_case(attack_id)
+            case = self.sample_case_at_level(attack_id, level)
             resp = self.pipeline.answer(case.user_input, injected_docs=case.injected_docs,
                                         defenses=defenses, reset_session=False)
             v = self.judge.verdict(case, resp)
@@ -219,17 +240,43 @@ class DemoController:
                 + "".join(stats) + "</div>")
 
     def best_summary_md(self) -> str:
-        b = self.results.get("best") or {}
+        r = self.results
+        b = r.get("best") or {}
         if not b:
             return "_No saved results yet — run `run_full.py` (or `00_MAIN.ipynb`) first._"
-        return (
-            f"### Best defence stack: `{b.get('stack', '-')}`\n"
+        lines = [
+            f"### Best defence stack: `{b.get('stack', '-')}`",
             f"- robustness **{b.get('robustness', 0):.0%}** · "
-            f"utility **{b.get('utility', 0):.2f}** · FRR **{b.get('frr', 0):.0%}**\n"
-            f"- overall ASR **{self.results.get('asr_undefended_overall', 0):.0%} → "
-            f"{self.results.get('asr_fullstack_overall', 0):.0%}** · "
-            f"{self.results.get('n_stacks_screened', 0)} stacks screened"
-        )
+            f"utility **{b.get('utility', 0):.2f}** · FRR **{b.get('frr', 0):.0%}**",
+            f"- overall ASR **{r.get('asr_undefended_overall', 0):.0%} → "
+            f"{r.get('asr_fullstack_overall', 0):.0%}** (undefended → full D1–D9 stack) · "
+            f"{r.get('n_stacks_screened', 0)} of 64 stacks screened",
+        ]
+        # Optuna threshold tuning (a whole phase — surface its result)
+        tt = r.get("tuned_thresholds") or {}
+        tm = r.get("tuned_metrics") or {}
+        if tt:
+            thr = " · ".join(f"`{k}`={v:.2f}" for k, v in tt.items())
+            tail = (f" → robustness {tm.get('robustness', 0):.0%} / FRR {tm.get('frr', 0):.0%}"
+                    if tm else "")
+            lines.append(f"- **Optuna-tuned thresholds:** {thr}{tail}")
+        else:
+            lines.append("- **Optuna:** best stack has no continuous thresholds to tune")
+        # Adaptive attacker (A7) vs the best stack — LLM-driven + heuristic baseline
+        curve = r.get("adaptive_curve") or []
+        hcurve = r.get("adaptive_curve_heuristic") or []
+        if curve:
+            hb = f" · heuristic **{hcurve[-1]:.0%}**" if hcurve else ""
+            lines.append(
+                f"- **Adaptive attacker** (A7) vs `{r.get('adaptive_vs_stack', '-')}`, "
+                f"{len(curve)} rounds: cumulative ASR LLM **{curve[-1]:.0%}**{hb} "
+                f"— curve `{' → '.join(f'{x:.0%}' for x in curve)}`")
+        el = r.get("elapsed_s")
+        meta = f"{r.get('mode', '?')} run · model `{r.get('model', '')}`"
+        if isinstance(el, (int, float)):
+            meta += f" · full-run compute {el / 60:.1f} min"
+        lines.append(f"\n<sub>{meta}</sub>")
+        return "\n".join(lines)
 
     def evaluate_stack_quick(self, defense_ids, n: int = 4, benign_k: int = 8) -> str:
         """Fast live evaluation of one chosen defence stack (small samples)."""
@@ -347,6 +394,10 @@ def build_app(controller: DemoController):
                                     "<span class='section-hint'>🔴 attack · optional</span>")
                         attack = gr.Dropdown(choices=ATTACK_CHOICES, value="None",
                                              show_label=False, container=False)
+                        level = gr.Dropdown(
+                            choices=[("L0 · production (blunt)", 0), ("L1 · intermediate", 1),
+                                     ("L2 · advanced", 2)],
+                            value=0, label="Sophistication level (applies when an attack is chosen)")
                     with gr.Group(elem_classes=["step-card", "defense-card"]):
                         gr.Markdown("**③ Enable defences** &nbsp;"
                                     "<span class='section-hint'>🟢 defences</span>")
@@ -362,11 +413,11 @@ def build_app(controller: DemoController):
                     answer = gr.Textbox(label="Bot answer", lines=4)
                     retrieved = gr.Markdown()
 
-            def _on_ask(q, a, ds):
-                r = controller.run_query(q, a, ds or [])
+            def _on_ask(q, a, ds, lv):
+                r = controller.run_query(q, a, ds or [], level=int(lv or 0))
                 return (controller.verdict_html(r), r.answer,
                         "**Retrieved context**\n\n" + controller.retrieved_markdown(r.retrieved))
-            ask.click(_on_ask, [query, attack, defenses], [verdict, answer, retrieved])
+            ask.click(_on_ask, [query, attack, defenses, level], [verdict, answer, retrieved])
             script.click(lambda: ("", "", controller.demo_script()),
                          None, [verdict, answer, retrieved])
 
@@ -377,6 +428,15 @@ def build_app(controller: DemoController):
                          label="Per-attack ASR (undefended → full defence stack)")
             asr_img = gr.Image(value=controller.artifact("asr_undefended.png"),
                      label="ASR per attack (undefended)", height=300)
+
+            gr.Markdown("#### 🪜 Sophistication ladder — attacks **L0/L1/L2** × defences **D0/D1/D2**")
+            gr.Markdown("<span class='section-hint'>Smarter attacks (L0 blunt → L2 composed) vs. "
+                        "stronger defences (D0 none → D1 content filters → D2 defence-in-depth). "
+                        "Each cell is ASR; lower-right = hardest attack meets strongest defence.</span>")
+            ladder_img = gr.Image(value=controller.artifact("ladder_heatmap.png"),
+                     label="Overall ASR — attack level × defence level", height=300)
+            ladder_tbl = gr.Markdown(controller.ladder_markdown())
+
             gr.Markdown("#### ↻ Run a quick attack sweep (live)")
             n_slider = gr.Slider(2, 20, value=5, step=1, label="Cases per attack")
             run_atk = gr.Button("Run attack sweep", variant="primary")
@@ -431,14 +491,16 @@ def build_app(controller: DemoController):
             gr.Markdown(
                 "<span class='section-hint'>Both profiles run the <b>same phases</b> on all 9 attacks and "
                 "every defence (undefended suite · full-stack defence · 64-stack search · Optuna tuning · "
-                "adaptive attacker) — only the <b>sample sizes</b> differ, so Full is more statistically "
-                "reliable but slower.<br>"
+                "adaptive attacker · <b>sophistication ladder</b> L0/L1/L2 × D0/D1/D2) — only the "
+                "<b>sample sizes</b> differ, so Full is more statistically reliable but slower.<br>"
                 f"&nbsp;•&nbsp;<b>Quick</b> — {_q['n']} prompts/attack · {_q['rounds']} adaptive rounds · defence "
-                f"search screens each stack on {_q['screen_n']} attacks + {_q['screen_benign']} benign: a fast "
-                "pass that still fills every tab, for demos &amp; sanity checks (minutes, not hours).<br>"
+                f"search screens each stack on {_q['screen_n']} attacks + {_q['screen_benign']} benign · "
+                f"ladder {min(_q['n'], 12)}/cell: a fast pass that still fills every tab, for demos &amp; "
+                "sanity checks (minutes, not hours).<br>"
                 f"&nbsp;•&nbsp;<b>Full</b> — {_f['n']} prompts/attack · {_f['rounds']} rounds · {_f['screen_n']} "
-                f"attacks + {_f['screen_benign']} benign per screen: the report-grade numbers you cite in the "
-                "write-up (hours, and resumable if the runtime disconnects).</span>")
+                f"attacks + {_f['screen_benign']} benign per screen · ladder {min(_f['n'], 12)}/cell: the "
+                "report-grade numbers you cite in the write-up (hours, and resumable if the runtime "
+                "disconnects).</span>")
             fresh = gr.Checkbox(
                 value=False,
                 label="Start fresh — ignore saved checkpoints and recompute every phase")
@@ -451,12 +513,15 @@ def build_app(controller: DemoController):
 
         # ---- Run tab refreshes every results-backed panel on completion ----
         from . import fullrun
-        results_out = [hdr, cached_tbl, asr_img, best_md, heat_img, pareto_img, adap_img, gov]
+        results_out = [hdr, cached_tbl, asr_img, ladder_img, ladder_tbl,
+                       best_md, heat_img, pareto_img, adap_img, gov]
 
         def _refresh_all():
             controller.results = fullrun.load_saved_results() or controller.results
             return (controller.header_stats_html(), controller.cached_attack_rows(),
-                    controller.artifact("asr_undefended.png"), controller.best_summary_md(),
+                    controller.artifact("asr_undefended.png"),
+                    controller.artifact("ladder_heatmap.png"), controller.ladder_markdown(),
+                    controller.best_summary_md(),
                     controller.artifact("heatmap.png"), controller.artifact("pareto.png"),
                     controller.artifact("adaptive_curve.png"), controller.governance_markdown())
 
@@ -521,7 +586,7 @@ def build_app(controller: DemoController):
             word = "Quick" if str(profile_label).startswith("Quick") else "Full"
             n = _ck_count(profile_label)
             if n and not fresh_flag:
-                return gr.update(value=f"↻ Resume {word} run ({n}/6 saved)")
+                return gr.update(value=f"↻ Resume {word} run ({n}/7 saved)")
             return gr.update(value=f"▶ Run {word} pipeline")
 
         def _stop_run():
@@ -625,6 +690,10 @@ def launch(share: bool | None = None, offline: bool | None = None,
         defenses = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
         controller = DemoController(pipe, attacks, judge, defenses, canaries, benign)
         _log("model ready.")
+    # On Colab with Drive mounted-but-empty the active artifact dir has no results yet; seed it
+    # from the cloned repo's committed ./artifacts so the graphs/tables aren't blank. No-op locally.
+    if config.seed_artifacts_from_repo():
+        _log("seeded results/plots from the repo's committed artifacts/ (empty Drive/artifact dir)")
     # Load the last full run's results (from artifacts/ or a mounted Drive) so the
     # Attack / Defense / Governance tabs show real numbers right away.
     from . import fullrun

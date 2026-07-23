@@ -183,7 +183,9 @@ jailbroken/uncensored attacker model is future work.
 
 ## 3.1 Defences implemented
 _[Pre-filled catalog — 9 defences at 3 hook points. D1–D6 are the searched content filters;
-D7–D9 are targeted/deployment controls added in the hardening pass (§3.6).]_
+D7–D9 are targeted/deployment controls added in the hardening pass (§3.7). Two further controls,
+**D10 instruction-hierarchy** and **D11 decode-then-scan**, are introduced for the sophistication
+ladder's D2 defence-in-depth level (§3.4).]_
 
 | ID | Defence | Hook point | Counters |
 |---|---|---|---|
@@ -265,7 +267,52 @@ D2+D5 vs full stack; what utility 0.44 means (and its limits as a metric); the s
 guardrail costs; and that the search is over the sampled configs and attack mix — a different seed/model
 shifts the choice (indeed it moved from D4+D5 to **D2+D5** once A8–A10 entered the objective).
 
-## 3.4 Deployment controls (map each risk → control)
+## 3.4 Sophistication ladder — does *smarter attacking* beat *stronger defending*?
+_[Pre-filled from `artifacts/results.json["ladder"]` + `artifacts/ladder_heatmap.png` — VERIFY. A
+distinct experiment from §3.3: instead of one attack strength vs. many stacks, it sweeps **three attack
+sophistication levels × three defence levels** for **every** family, so both axes are read at once.]_
+
+**Design (two graded axes).**
+- **Attack levels** (same goal/marker per family; only the wording escalates, so every cell stays judge-scorable):
+  - **L0** *blunt / production* — direct imperatives ("ignore your instructions…"), i.e. the §2.2 attacks.
+  - **L1** *intermediate* — **one** clear technique (authority spoof, fiction frame, soft delimiter break).
+  - **L2** *advanced* — **composed** techniques (roleplay + gradual escalation, format smuggling, multi-channel).
+- **Defence levels** (increasing-strength stacks):
+  - **D0** *none* — raw model (reveals the attack's true strength).
+  - **D1** *content filters* — `D1+D2+D4+D6` (spotlighting + input guardrail + output filter + normalisation).
+  - **D2** *defence-in-depth* — `D1+D2+D3+D4+D5+D6+D7+D9` **plus two new controls**: **D10 instruction-hierarchy**
+    (explicit "system rules outrank retrieved/user text; never reveal internal docs/codes/config") and **D11
+    decode-then-scan** (normalise the *answer*, then block if a canary / `OWNER-FP` / prompt secret survives decoding).
+- Each of the **9 ladder families** (A1–A6, A8–A10; adaptive A7 is measured separately in §2.3) is run at **N = 12
+  cases/cell** with the same deterministic judge; utility & FRR are measured per defence level on the held-out benign set.
+
+**Table 3.3 — Overall ASR (mean across the 9 families), attack level × defence level (real Qwen3-8B, N = 12/cell).**
+
+| Attack level | D0 · none | D1 · content filters | D2 · defence-in-depth |
+|---|---:|---:|---:|
+| **L0** blunt | 31 % | 6 % | **0 %** |
+| **L1** intermediate | 44 % | 0 % | **0 %** |
+| **L2** advanced | 48 % | 0 % | **0 %** |
+| _Utility / FRR (per defence level)_ | 0.45 / 0 % | 0.45 / 0 % | 0.45 / 0 % |
+
+**[FIGURE 6 — `artifacts/ladder_heatmap.png`]** the 3×3 ASR heatmap (shown live in the Attack Lab tab —
+`artifacts/ui_v3_attacklab.png` — with the full per-family **L0/L1/L2 × D0/D1/D2** breakdown table).
+
+> **Both axes in one figure.** Down a column (fixed defence), *more sophisticated attacks raise ASR*: undefended
+> **L0 31 % → L1 44 % → L2 48 %**. Across a row (fixed attack), *stronger defences cut it down*: even the hardest
+> **L2** attacks fall **48 % → 0 %** by D1, and everything is **0 %** at D2 — at **no measured utility/false-refusal
+> cost** (0.45 / 0 % at every level). The per-family table shows where sophistication bites hardest: **A5 and A8 go
+> 25 % → 33 % → 100 %** across L0→L1→L2 undefended, while **A9 is 100 % at every level** (an output-side leak,
+> independent of wording) and **A9 even survives D1 at L0 = 42 %** — yet *all* families are neutralised at D2.
+
+**✍️ WRITE (team) — high-value C3 analysis.** Argue that (a) the attack surface is *graded*, not binary — a defence
+that stops blunt L0 attacks must be re-tested against composed L2 ones; (b) the D1 content filters already absorb
+almost the entire sophistication gain, and D2 defence-in-depth closes the residual (notably A9 at D1·L0); (c) the
+*flat* utility/FRR across defence levels is the accuracy–robustness payoff — robustness bought at ~zero cost on this
+benign sample (caveat: small benign set, one seed, one model). Contrast with §3.3: the ladder shows the *defence-level*
+trend across families; the Pareto view shows the *per-stack* frontier.
+
+## 3.5 Deployment controls (map each risk → control)
 **✍️ WRITE (team):** Close the loop back to §1.3. For a real deployment, list controls
 beyond the model defences and tie them to R1/R2/…:
 
@@ -275,7 +322,7 @@ beyond the model defences and tie them to R1/R2/…:
 | R2 injection | D6→D2, D1, D3 | ✍️ *rate-limiting; human-in-the-loop for high-risk actions; content provenance* |
 | … | … | ✍️ *monitoring, incident response, periodic re-evaluation (RMF "Manage")* |
 
-## 3.5 Governance re-score & limitations
+## 3.6 Governance re-score & limitations
 _[Pre-filled: NIST AI RMF re-scored on the **defended** system — `artifacts/governance.md`
 (compare view).]_
 
@@ -283,7 +330,7 @@ _[Pre-filled: NIST AI RMF re-scored on the **defended** system — `artifacts/go
 state honest **limitations**: 8 B victim (results are model-specific), bounded attack
 banks, deterministic judge scope, offline vs real caveats, flat adaptive result.
 
-## 3.6 Extended coverage & limitations (security-review map)
+## 3.7 Extended coverage & limitations (security-review map)
 _[Pre-filled: a hardening pass widened coverage beyond the core A1–A6 / D1–D6 experiment. The new
 items were run on the **real Qwen3-8B** (RTX 5090) — see the numbers in §2.2 / §3.3. This subsection
 doubles as an honest "what we did / didn't do" table.]_
@@ -298,8 +345,12 @@ doubles as an honest "what we did / didn't do" table.]_
 - **Hygiene:** HF **model-revision pinning** (supply-chain integrity) and **log redaction** (secrets are
   scrubbed from persisted CSVs). The exhaustive Pareto search stays over D1–D6 (64 stacks); D7–D9 are
   always-on in the full stack and toggleable in the labs.
-- **Prototype (not melted in):** a teammate **L1/L2 sophistication ladder** (`prototypes/sophisticated_*.py`)
-  is kept as a documented experiment for a future "raise ASR under D0, then D1/D2 knock it down" table.
+- **Sophistication ladder (now implemented — §3.4, Table 3.3):** the teammate L1/L2 attack catalogue was melted
+  into the suite (`ragguard/attacks/levels.py`, all 9 families) together with new **D0/D1/D2 defence levels**
+  (`build_defense_level`, adding controls **D10 instruction-hierarchy** + **D11 decode-then-scan**) and a harness
+  (`ragguard/ladder.py`) that fills the L0/L1/L2 × D0/D1/D2 matrix. It runs as a phase of the full pipeline and is
+  folded into `results.json["ladder"]` + `ladder_heatmap.png`; the original `prototypes/sophisticated_*.py` catalogue
+  is retained as its source.
 
 **Future work (scoped, not built — good limitations material):** perplexity/GCG-suffix filtering,
 paraphrase-and-compare, multi-sample self-consistency; ingestion-time quarantine / provenance
@@ -340,8 +391,11 @@ _[Pre-filled — convert to your required citation style; cite only what you act
 APPENDIX (optional — REMEMBER these pages likely count toward the 10-page limit;
 keep only what strengthens the argument, push the rest to the notebooks/repo).
   • Selected attack/defence transcripts (from artifacts/results.json → transcripts, or the notebook)
-  • UI screenshots: artifacts/ui_v3_livedemo.png, ui_v2_livedemo_attack.png (attack-succeeded state),
-    ui_v3_attacklab.png, ui_v3_defenselab.png, ui_v3_governance.png, ui_v3_run.png
+  • Plots: artifacts/ladder_heatmap.png (the L0/L1/L2 × D0/D1/D2 ASR heatmap, Fig 6)
+  • UI screenshots: artifacts/ui_v3_livedemo.png (now with the Sophistication-level dropdown),
+    ui_v2_livedemo_attack.png (attack-succeeded state), ui_v3_attacklab.png (now includes the full
+    sophistication-ladder heatmap + per-family L0/L1/L2 × D0/D1/D2 table), ui_v3_defenselab.png
+    (now surfaces the Optuna thresholds + adaptive curve), ui_v3_governance.png, ui_v3_run.png
     (+ ui_v3_livedemo_dark.png for the dark-mode view)
   • Reproduction: run_full.py + 00_MAIN.ipynb (repo)
 

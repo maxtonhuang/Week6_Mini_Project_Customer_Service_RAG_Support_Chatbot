@@ -12,6 +12,13 @@ hook points — including **D7 visibility access-control** (fixes a real confide
 rate-limiting, and **D9** semantic-leak/fingerprint filtering. Scope + architecture decisions for the
 hardening pass are in [`HARDENING_DECISIONS.md`](./HARDENING_DECISIONS.md).
 
+A **sophistication ladder** then sweeps attacks at three levels (**L0** blunt → **L1** one technique →
+**L2** composed) against three defence levels (**D0** none → **D1** content filters → **D2**
+defence-in-depth, adding controls D10 instruction-hierarchy + D11 decode-then-scan). The result — real
+5090 numbers, overall ASR by (attack level × defence level): **L0 31/6/0% · L1 44/0/0% · L2 48/0/0%** —
+shows smarter attacks raising ASR undefended and stronger defences driving it to 0% at no utility cost.
+It's a phase of the full run (folded into `results.json`) and shown in the **Attack Lab** tab.
+
 ## Victim system
 
 | Component | Model / tool |

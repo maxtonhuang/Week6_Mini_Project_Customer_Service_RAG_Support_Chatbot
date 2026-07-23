@@ -82,6 +82,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None,
     def stamp(m): return f"[{time.time()-t0:6.0f}s] {m}"
 
     from ragguard import corpus, rag, prompts, metrics, orchestrator, report, governance
+    from ragguard import ladder as ladder_mod
     from ragguard import canary as cm
     from ragguard.judge import RuleJudge
     from ragguard.attacks import (build_all_attacks, AdaptiveAttacker,
@@ -106,7 +107,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None,
     CK.mkdir(parents=True, exist_ok=True)
     _existing = sorted(p.stem for p in CK.glob("*.json"))
     if _existing and not fresh:
-        yield stamp(f"RESUMING from {len(_existing)}/6 saved checkpoints "
+        yield stamp(f"RESUMING from {len(_existing)}/7 saved checkpoints "
                     f"({', '.join(_existing)}) — completed phases load from disk in seconds. "
                     f"Tick 'Start fresh' (or delete {CK.name}/) to re-run from scratch.")
     MATRIX_N = min(20, C.N_PER_ATTACK)
@@ -243,12 +244,31 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None,
     curve = adaptive["llm"]["curve"]
     yield stamp(f"adaptive vs {best['stack']} | LLM {[f'{x:.0%}' for x in curve]}")
 
+    # ---------------- sophistication ladder (attack L0/L1/L2 x defence D0/D1/D2) ----------------
+    stop_check()
+    LADDER_N = min(C.N_PER_ATTACK, 12)
+    yield stamp(f"-> sophistication ladder ({len(ladder_mod.LADDER_FAMILIES)} families x "
+                f"L0/L1/L2 x D0/D1/D2, N={LADDER_N}) -- new L1/L2 cells are uncached...")
+    def _ladder():
+        production = {a.id: a for a in attacks}
+        return ladder_mod.run_ladder(
+            pipe, judge, production=production, canary_docs=canaries,
+            benign_eval=benign[:C.SCREEN_BENIGN], n=LADDER_N,
+            system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS, should_stop=should_stop)
+    ladder, hit = checkpoint("ladder", _ladder)
+    _save()
+    _lo = ladder["asr_overall"]
+    yield stamp("ladder done" + (" (resumed)" if hit else "") +
+                f" | overall ASR at L2 attack: D0 {_lo['2']['0']:.0%} -> D1 {_lo['2']['1']:.0%} "
+                f"-> D2 {_lo['2']['2']:.0%}")
+
     # ---------------- plots + governance + results ----------------
     try:
         report.asr_bar(undef, ART / "asr_undefended.png")
         report.attack_defense_heatmap(matrix, ART / "heatmap.png")
         report.pareto_plot(search["pareto"], ART / "pareto.png", knee=search.get("knee"))
         report.adaptive_curve_plot(curve, ART / "adaptive_curve.png")
+        report.ladder_heatmap(ladder, ART / "ladder_heatmap.png")
         report.records_to_csv(undef, ART / "records_undefended.csv")
         report.records_to_csv(matrix, ART / "records_matrix.csv")
         yield stamp("plots + CSVs written")
@@ -285,6 +305,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None,
         "tuned_thresholds": tuned["best_params"],
         "tuned_metrics": tuned["tuned_metrics"],
         "n_stacks_screened": len(search["screened"]),
+        "ladder": ladder,
         "elapsed_s": elapsed_s,
     }
     (ART / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
