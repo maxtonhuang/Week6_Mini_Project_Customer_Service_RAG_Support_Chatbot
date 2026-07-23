@@ -90,6 +90,18 @@ Member A = §Setup+Threat (slides 1–4) · Member B = §Attacks (5–7) · Memb
 - **SAY:** That's the accuracy–robustness tradeoff, measured — and it shows *why* the extended defences
   were needed: the classic filters alone don't cover the new attack families.
 
+### Slide 9b — Sophistication ladder ⭐  ·  ~45s  ·  [C2/C3]  *(the two-axis "money" slide)*
+- **SHOW:** `artifacts/ladder_heatmap.png` (the 3×3 ASR heatmap) — big. Optionally flash the per-family
+  L0/L1/L2 breakdown from `artifacts/ui_v3_attacklab.png`.
+- **SAY (setup):** We graded **attacks** L0 blunt → L1 one-technique → L2 composed, against **defences**
+  D0 none → D1 content-filters → D2 defence-in-depth (adds D10 instruction-hierarchy + D11 decode-then-scan),
+  for all 9 families.
+- **SAY (real numbers — read it two ways):** **Down** a column, smarter attacks *raise* undefended ASR —
+  **L0 31% → L1 44% → L2 48%**. **Across** a row, stronger defences *crush* it — even L2 drops to **0% by D1**,
+  and **everything is 0% at D2**, at **zero utility / false-refusal cost**.
+- **SAY (punchline):** Robustness isn't "does the *textbook* attack fail?" — a defence has to survive *composed*
+  attacks too. Ours does.
+
 ### Slide 10 — Governance re-score + deployment  ·  ~30s  ·  [C3]
 - **SHOW:** baseline → defended scorecard (🔴→🟢) + risk→control mapping.
 - **SAY:** Post-defence, RMF Measure/Manage move to green. For real deployment we'd add
@@ -139,6 +151,7 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 - **"Why add D7–D9 if D2+D5 is the 'best' stack?"** → The 64-stack search only ranges over D1–D6, and **no D1–D6 filter blocks the IP-fingerprint attack A9** (an output-side leak). D7–D9 target the new families (access-control, rate-limit, semantic/fingerprint) — the **full stack** is what reaches 0%.
 - **"Is the judge reliable?"** → Deterministic rules (canary string, n-gram overlap) — reproducible; canaries make extraction exact. (LLM-judge cross-check available.)
 - **"Adaptive attacker flat — is that a failure?"** → It's an honest negative result; heuristic mutations didn't beat the refusals. We report it, we don't hide it.
+- **"Do *more sophisticated* attacks break your defences?"** → We tested exactly that with an **L0/L1/L2 × D0/D1/D2 ladder**. Sophistication *does* raise undefended ASR (31%→44%→48%), but D1 content filters already drop even L2 attacks to **0%**, and D2 defence-in-depth holds everything at **0%** — at **no** utility/false-refusal cost. So the defences aren't just tuned to the blunt attacks.
 - **"Real-world fix?"** → Segregate internal docs behind access-controlled retrieval; don't co-mingle with public FAQs; monitor canary hits.
 
 ## Logistics checklist (✍️)
@@ -149,8 +162,10 @@ Four beats on **Tab 1 · Live Demo** (use the **▶ Run demo script** button to 
 - [ ] Export to PDF/PPTX for submission.
 
 <!-- Figures to drop in (all in artifacts/): asr_undefended.png, adaptive_curve.png,
-heatmap.png, pareto.png, ui_v3_livedemo.png, ui_v2_livedemo_attack.png (attack-succeeded state),
-ui_v3_attacklab.png, ui_v3_defenselab.png, ui_v3_governance.png, ui_v3_run.png
-(+ ui_v3_livedemo_dark.png for a dark-mode view; ui_v3_livedemo_a9.png / ui_v3_livedemo_a9_blocked.png
-for the A9 fingerprint demo), governance.md (for the scorecard tables).
-Delete these comments before exporting. -->
+heatmap.png, pareto.png, ladder_heatmap.png (L0/L1/L2 × D0/D1/D2 — Slide 9b),
+ui_v3_livedemo.png (now with the Sophistication-level dropdown), ui_v2_livedemo_attack.png
+(attack-succeeded state), ui_v3_attacklab.png (now includes the full sophistication-ladder heatmap +
+per-family table), ui_v3_defenselab.png (now shows the Optuna thresholds + adaptive curve),
+ui_v3_governance.png, ui_v3_run.png (+ ui_v3_livedemo_dark.png for a dark-mode view;
+ui_v3_livedemo_a9.png / ui_v3_livedemo_a9_blocked.png for the A9 fingerprint demo),
+governance.md (for the scorecard tables). Delete these comments before exporting. -->
