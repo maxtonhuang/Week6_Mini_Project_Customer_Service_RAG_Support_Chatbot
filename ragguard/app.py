@@ -344,12 +344,12 @@ def build_app(controller: DemoController):
                                            show_label=False, container=False)
                     with gr.Group(elem_classes=["step-card", "attack-card"]):
                         gr.Markdown("**② Launch an attack** &nbsp;"
-                                    "<span class='section-hint'>🔴 red-team · optional</span>")
+                                    "<span class='section-hint'>🔴 attack · optional</span>")
                         attack = gr.Dropdown(choices=ATTACK_CHOICES, value="None",
                                              show_label=False, container=False)
                     with gr.Group(elem_classes=["step-card", "defense-card"]):
                         gr.Markdown("**③ Enable defences** &nbsp;"
-                                    "<span class='section-hint'>🟢 blue-team</span>")
+                                    "<span class='section-hint'>🟢 defences</span>")
                         defenses = gr.CheckboxGroup(
                             choices=[(v, k) for k, v in DEFENSE_LABELS.items()],
                             show_label=False, container=False)
@@ -416,20 +416,38 @@ def build_app(controller: DemoController):
 
         with gr.Tab("5 · Run Pipeline") as run_tab:
             gr.Markdown(
-                "Run the whole red-team → blue-team pipeline and populate every tab. "
+                "Run **all attacks + defenses** across the whole pipeline and populate every tab. "
                 "Results + resumable checkpoints save to `artifacts/` — or to **Google Drive** "
-                "if it's mounted, so they survive a reload. **Full** resumes if the runtime "
-                "disconnects; just press Run again.")
+                "if it's mounted, so they survive a reload. A re-run **resumes** from saved "
+                "checkpoints — so if a run already finished it completes in seconds instead of "
+                "recomputing. Tick **Start fresh** to force every phase to recompute.")
             with gr.Row():
                 profile = gr.Radio(["Quick (~minutes)", "Full (~hours, resumable)"],
                                    value="Quick (~minutes)", label="Profile", scale=3)
-                run_btn = gr.Button("▶ Run full pipeline", variant="primary", scale=1)
+                run_btn = gr.Button("▶ Run Quick pipeline", variant="primary", scale=1)
+                stop_btn = gr.Button("⏹ Stop run", variant="stop", scale=1)
+            from .fullrun import PROFILES as _PROF
+            _q, _f = _PROF["quick"], _PROF["full"]
+            gr.Markdown(
+                "<span class='section-hint'>Both profiles run the <b>same phases</b> on all 9 attacks and "
+                "every defence (undefended suite · full-stack defence · 64-stack search · Optuna tuning · "
+                "adaptive attacker) — only the <b>sample sizes</b> differ, so Full is more statistically "
+                "reliable but slower.<br>"
+                f"&nbsp;•&nbsp;<b>Quick</b> — {_q['n']} prompts/attack · {_q['rounds']} adaptive rounds · defence "
+                f"search screens each stack on {_q['screen_n']} attacks + {_q['screen_benign']} benign: a fast "
+                "pass that still fills every tab, for demos &amp; sanity checks (minutes, not hours).<br>"
+                f"&nbsp;•&nbsp;<b>Full</b> — {_f['n']} prompts/attack · {_f['rounds']} rounds · {_f['screen_n']} "
+                f"attacks + {_f['screen_benign']} benign per screen: the report-grade numbers you cite in the "
+                "write-up (hours, and resumable if the runtime disconnects).</span>")
+            fresh = gr.Checkbox(
+                value=False,
+                label="Start fresh — ignore saved checkpoints and recompute every phase")
             reload_btn = gr.Button("🔄 Reload saved results into the other tabs", size="sm")
             gr.Markdown("<span class='section-hint'>Re-reads the last saved `results.json` and refreshes the "
                         "header stats + the **Attack Lab / Defense Lab / Governance** tabs — use it after a "
-                        "**Full** run here, or after running `run_full.py` in a terminal. (It doesn't change "
+                        "run here, or after running `run_full.py` in a terminal. (It doesn't change "
                         "anything on this tab; the confirmation appears in the log below.)</span>")
-            run_log = gr.Markdown("_Idle — pick a profile and press ▶ Run full pipeline._")
+            run_log = gr.Markdown("_Idle — pick a profile, tick Start fresh if you want a clean run, then press Run._")
 
         # ---- Run tab refreshes every results-backed panel on completion ----
         from . import fullrun
@@ -442,22 +460,30 @@ def build_app(controller: DemoController):
                     controller.artifact("heatmap.png"), controller.artifact("pareto.png"),
                     controller.artifact("adaptive_curve.png"), controller.governance_markdown())
 
-        def _run_gen(profile_label):
+        def _run_gen(profile_label, fresh_flag):
             # Run the pipeline in a background thread and stream its progress. A heartbeat
             # with an elapsed timer is emitted every few seconds so a long phase (e.g. the
             # 64-stack search) never looks frozen; the run continues across tab switches.
             import threading, queue, time
+            from . import orchestrator
             prof = "quick" if str(profile_label).startswith("Quick") else "full"
             q: "queue.Queue" = queue.Queue()
             _DONE = object()
+            stop_event = threading.Event()
+            controller._stop_event = stop_event   # the ⏹ Stop button sets this
 
             def _worker():
                 try:
-                    for msg in fullrun.run(prof, controller=controller):
+                    for msg in fullrun.run(prof, controller=controller, fresh=bool(fresh_flag),
+                                           should_stop=stop_event.is_set):
                         q.put(msg)
+                except orchestrator.RunCancelled:
+                    q.put("⏹ stopped by user — previous saved results kept (nothing overwritten). "
+                          "Completed phases are checkpointed, so pressing Run resumes from here.")
                 except Exception as e:                       # surface errors in the log
                     q.put(f"ERROR: {e}")
                 finally:
+                    controller._stop_event = None
                     q.put(_DONE)
 
             threading.Thread(target=_worker, daemon=True).start()
@@ -482,7 +508,33 @@ def build_app(controller: DemoController):
                 el = int(time.time() - start)
                 yield _render(f"[ still running -- elapsed {el // 60}m{el % 60:02d}s ]")
 
-        _idle = "_Idle — pick a profile and press ▶ Run full pipeline._"
+        _idle = "_Idle — pick a profile, tick Start fresh if you want a clean run, then press Run._"
+
+        def _ck_count(profile_label):
+            # How many of the 6 phase checkpoints already exist for this profile — drives the
+            # button's Run/Resume wording so a seconds-long resume is never a surprise.
+            prof_dir = "full_fast" if str(profile_label).startswith("Quick") else "full"
+            ck = config.artifact_dir() / prof_dir
+            return len(list(ck.glob("*.json"))) if ck.exists() else 0
+
+        def _btn_label(profile_label, fresh_flag):
+            word = "Quick" if str(profile_label).startswith("Quick") else "Full"
+            n = _ck_count(profile_label)
+            if n and not fresh_flag:
+                return gr.update(value=f"↻ Resume {word} run ({n}/6 saved)")
+            return gr.update(value=f"▶ Run {word} pipeline")
+
+        def _stop_run():
+            # Signal the in-flight run to abort at the next phase/loop boundary. The run raises
+            # RunCancelled BEFORE results.json is written, so saved results are never touched.
+            ev = getattr(controller, "_stop_event", None)
+            if ev is not None:
+                ev.set()
+                note = "\n_(stop requested — finishing the current step, then halting; saved results are kept.)_"
+            else:
+                note = "\n_(nothing is running.)_"
+            controller._run_log = (controller._run_log or _idle) + note
+            return controller._run_log
 
         def _reload():
             # Re-read results.json from disk (e.g. after an external run_full.py) into every
@@ -498,11 +550,23 @@ def build_app(controller: DemoController):
             controller._run_log = msg
             return (*vals, msg)
 
-        run_btn.click(_run_gen, profile, run_log).then(_refresh_all, None, results_out)
+        run_btn.click(_run_gen, [profile, fresh], run_log) \
+               .then(_refresh_all, None, results_out) \
+               .then(_btn_label, [profile, fresh], run_btn)      # a fresh run creates checkpoints -> becomes "Resume"
         reload_btn.click(_reload, None, results_out + [run_log])
+        # Stop runs OUTSIDE the queue (queue=False) so it fires even while the run generator
+        # is streaming and holding the queue worker — it just sets a threading.Event.
+        stop_btn.click(_stop_run, None, run_log, queue=False)
+        # Keep the button's Run/Resume wording in sync with the current selection so it
+        # always reflects what pressing it will actually do.
+        profile.change(_btn_label, [profile, fresh], run_btn)
+        fresh.change(_btn_label, [profile, fresh], run_btn)
         # Re-show the in-progress (or last) run whenever the Run tab is re-opened —
         # the run itself keeps going server-side regardless of which tab is visible.
         run_tab.select(lambda: controller._run_log or _idle, None, run_log)
+        # On first page load, reflect any existing checkpoints in the button (▶ Run vs ↻ Resume)
+        # instead of always showing the static default until the user touches a control.
+        demo.load(_btn_label, [profile, fresh], run_btn)
 
     return demo
 
@@ -550,6 +614,11 @@ def launch(share: bool | None = None, offline: bool | None = None,
         _log("loading the model + embedder — the slow step (~16 GB; the first run downloads it "
              "unless the Drive cache is on)…")
         pipe = rag.build_pipeline(offline=False)
+        # Wrap the model in the disk generation cache so a Run/Resume reuses generations across
+        # runs (and shares the CLI's gen_cache.json) instead of recomputing every prompt.
+        from .cache import CachedLLM
+        if getattr(pipe, "llm", None) is not None and not isinstance(pipe.llm, CachedLLM):
+            pipe.llm = CachedLLM(pipe.llm, path=config.artifact_dir() / "gen_cache.json")
         judge = RuleJudge(canary_tokens=canary_mod.canary_tokens(canaries),
                           system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS)
         attacks = build_all_attacks(canary_docs=canaries)

@@ -5,6 +5,44 @@ brackets is the git commit. Grouped as **Added / Changed / Fixed**.
 
 ---
 
+## [main] — 2026-07-23 · Run-tab clarity: profile-aware button + Start-fresh
+### Changed
+- **Run button label now follows the profile** — **▶ Run Quick pipeline** / **▶ Run Full pipeline**
+  (was a static "▶ Run full pipeline", which read as the *Full* profile even when *Quick* was
+  selected). When saved checkpoints exist for the selected profile the button reads
+  **↻ Resume … (n/6 saved)**, so a seconds-long resume is never a surprise.
+- **Plainer wording** in the UI: the Run-tab description now says "Run **all attacks + defenses**"
+  (was "red-team → blue-team pipeline"), and the Live Demo control hints read **🔴 attack** /
+  **🟢 defences** (were 🔴 red-team / 🟢 blue-team). The header tagline keeps the red-team/blue-team
+  framing (it's the project's methodology name).
+### Added
+- **"Start fresh" checkbox** on the Run Pipeline tab (and `run_full.py --fresh`,
+  `fullrun.run(fresh=True)`): deletes the profile's `artifacts/full[_fast]/` checkpoints so every
+  phase recomputes from scratch. Default keeps the resumable behaviour.
+- **Resume banner** in the live log: on a resumed run the first line names how many of the 6
+  checkpoints were loaded and how to force a fresh run.
+- **Quick vs. Full explainer** under the profile selector: states that both run the same phases on
+  all 9 attacks/defences and only the **sample sizes** differ (Quick 8 prompts/attack · 3 rounds ·
+  6+8 screen; Full 50 · 6 · 15+20), pulled live from `fullrun.PROFILES` so it can't drift.
+- **⏹ Stop run button.** Cancels an in-flight run cooperatively — checked between phases and inside
+  the long search/matrix loops (`orchestrator.RunCancelled`, threaded via `fullrun.run(should_stop=)`).
+  It raises **before** `results.json` is written, so a stopped run never overwrites saved results;
+  completed-phase checkpoints remain, so pressing Run resumes from there. Runs `queue=False` so it
+  fires mid-run. Covered by `tests/test_fullrun.py`.
+### Fixed
+- **UI runs were uncached and therefore slow.** `serve_app.py` (and `app.launch`'s real path) built a
+  bare `QwenLLM`, so a UI Run/Resume recomputed every generation while the CLI full run was
+  `CachedLLM`-backed — which is why "Quick" felt slower than the cached "Full". The served model is now
+  wrapped in `CachedLLM(gen_cache.json)`, reusing the CLI's cached generations and persisting new ones.
+- A re-run that "finished in seconds" was resuming from saved checkpoints (working as designed) but
+  gave no signal it had done so — now explicit in the button label, the header text, and the log.
+- **Resume no longer clobbers the honest run time.** A resumed run recomputes nothing, yet it used to
+  overwrite `results.json`'s `elapsed_s` with its ~0.4 s wall-time. `fullrun._pick_elapsed` now keeps
+  the larger of (this run, the previously saved time) unless **Start fresh** is ticked, so the real
+  from-scratch duration survives a resume. Covered by `tests/test_fullrun.py`.
+
+---
+
 ## [branch feat/hardening-a8a10-d7d9] — 2026-07-23 · Coverage expansion & hardening (PR)
 > On a feature branch / PR (not `main`). **Full run executed on RTX 5090** — real numbers in
 > `artifacts/results.json`: undefended **31% → full-stack (D1–D9) 0%**; new attacks **A8 30 / A9 100 /

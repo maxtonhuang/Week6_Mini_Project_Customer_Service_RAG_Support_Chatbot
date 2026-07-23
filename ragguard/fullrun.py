@@ -26,6 +26,19 @@ def _heavy_deps() -> bool:
                ("torch", "transformers", "sentence_transformers", "faiss"))
 
 
+def _pick_elapsed(new_elapsed: float, prev_elapsed, fresh: bool) -> float:
+    """Which run duration to record in results.json.
+
+    A resume recomputes nothing, so its wall-time (~seconds) must not clobber the real
+    from-scratch duration an earlier full run recorded. A ``fresh`` run always records its
+    own time; otherwise keep the larger of (this run, the previously saved time) — so a
+    seconds-long resume preserves the honest number, while a longer partial recompute wins.
+    """
+    if fresh or not isinstance(prev_elapsed, (int, float)):
+        return new_elapsed
+    return max(new_elapsed, prev_elapsed)
+
+
 def load_saved_results() -> dict:
     """Read the last run's results.json from the (possibly Drive-backed) artifact dir."""
     p = C.artifact_dir() / "results.json"
@@ -37,7 +50,8 @@ def load_saved_results() -> dict:
     return {}
 
 
-def run(profile: str = "quick", offline: bool | None = None, controller=None):
+def run(profile: str = "quick", offline: bool | None = None, controller=None,
+        fresh: bool = False, should_stop=None):
     """Generator. Runs the whole red-team/blue-team pipeline, yielding progress strings.
 
     Writes results.json (+ plots, CSVs, checkpoints) to config.artifact_dir().
@@ -45,6 +59,15 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
     ``controller`` (the Gradio ``DemoController``) lets the UI **reuse its already-loaded
     pipeline** instead of loading a second copy of the model — avoiding VRAM doubling. The
     CLI passes no controller and builds its own (with the disk generation cache + HF prompts).
+
+    ``fresh`` deletes this profile's saved checkpoints first, forcing every phase to
+    recompute from scratch. Default False keeps the resumable behaviour (a re-run picks up
+    where a crash/disconnect left off — which is why a re-run can finish in seconds).
+
+    ``should_stop`` is an optional ``() -> bool`` polled between phases and inside the long
+    search/matrix loops (the UI Stop button sets it). When it returns True the run raises
+    ``orchestrator.RunCancelled`` BEFORE results.json is written, so previously-saved results
+    are left untouched; completed-phase checkpoints remain for a later resume.
     """
     if profile not in PROFILES:
         profile = "quick"
@@ -76,7 +99,16 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
 
     ART = C.artifact_dir()
     CK = ART / ("full_fast" if C.FAST_MODE else "full")
+    if fresh and CK.exists():
+        import shutil
+        shutil.rmtree(CK, ignore_errors=True)
+        yield stamp(f"fresh start: cleared saved checkpoints in {CK.name}/ — recomputing every phase")
     CK.mkdir(parents=True, exist_ok=True)
+    _existing = sorted(p.stem for p in CK.glob("*.json"))
+    if _existing and not fresh:
+        yield stamp(f"RESUMING from {len(_existing)}/6 saved checkpoints "
+                    f"({', '.join(_existing)}) — completed phases load from disk in seconds. "
+                    f"Tick 'Start fresh' (or delete {CK.name}/) to re-run from scratch.")
     MATRIX_N = min(20, C.N_PER_ATTACK)
     yield stamp(f"artifacts -> {ART}")
 
@@ -90,6 +122,11 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         out = fn()
         p.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
         return out, False
+
+    def stop_check():
+        # Between phases: abort cleanly (before results.json is written) if the UI asked to stop.
+        if should_stop is not None and should_stop():
+            raise orchestrator.RunCancelled()
 
     # ---------------- build (or reuse the UI's already-loaded pipeline) ----------------
     if controller is not None:
@@ -125,32 +162,37 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         yield stamp(f"ready | KB {len(docs)} docs ({len(canaries)} canaries), benign {len(benign)}")
 
     # ---------------- phases ----------------
+    stop_check()
     yield stamp(f"-> undefended attack suite ({len(attacks)} attacks x N={C.N_PER_ATTACK})...")
     raw, hit = checkpoint("undefended",
         lambda: recs_to(orchestrator.run_suite(pipe, attacks, judge, defenses=None, n=C.N_PER_ATTACK)))
     undef = recs_from(raw); _save()
     yield stamp(f"undefended ASR {metrics.asr(undef):.0%}" + (" (resumed)" if hit else ""))
 
+    stop_check()
     yield stamp("-> full-stack attack suite (all defences on)...")
     raw, hit = checkpoint("fullstack",
         lambda: recs_to(orchestrator.run_suite(pipe, attacks, judge, defenses=defenses, n=C.N_PER_ATTACK)))
     full = recs_from(raw); _save()
     yield stamp(f"full-stack ASR {metrics.asr(full):.0%}" + (" (resumed)" if hit else ""))
 
+    stop_check()
     yield stamp(f"-> attack x defence matrix (N={MATRIX_N})...")
     raw, hit = checkpoint("matrix",
-        lambda: recs_to(orchestrator.attack_defense_matrix(pipe, attacks, judge, defenses, n=MATRIX_N)))
+        lambda: recs_to(orchestrator.attack_defense_matrix(pipe, attacks, judge, defenses, n=MATRIX_N,
+                                                           should_stop=should_stop)))
     matrix = recs_from(raw); _save()
     yield stamp("attack x defence matrix done" + (" (resumed)" if hit else ""))
 
     # Exhaustive Pareto search over the original content filters D1-D6 (64 stacks). D7-D9 are
     # targeted/deployment controls (A8/A9/A10) evaluated in the full stack + labs, not searched.
     search_defenses = [d for d in defenses if d.id in SEARCH_DEFENSE_IDS]
+    stop_check()
     yield stamp("-> defence-stack search (screening all 64 D1-D6 stacks -- the long phase)...")
     search, hit = checkpoint("search",
         lambda: orchestrator.two_stage_search(pipe, attacks, judge, search_defenses, benign,
                                               screen_n=C.SCREEN_N, screen_benign=C.SCREEN_BENIGN,
-                                              confirm_top=C.CONFIRM_TOP))
+                                              confirm_top=C.CONFIRM_TOP, should_stop=should_stop))
     _save()
     best = search["best"]
     best_ids = [i for i in best["stack"].split("+") if i and i != "none"]
@@ -167,6 +209,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         alld = build_all_defenses(system_prompt_secrets=prompts.SYSTEM_PROMPT_SECRETS,
                                   thresholds=dict(params))
         return [x for x in alld if x.id in best_ids]
+    stop_check()
     if _space:
         yield stamp("-> Optuna threshold tuning (15 trials)...")
         try:
@@ -193,6 +236,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         return {"vs_stack": best["stack"],
                 "llm": {"records": recs_to(recs_llm), "curve": adaptive_asr_curve(recs_llm)},
                 "heuristic": {"records": recs_to(recs_h), "curve": adaptive_asr_curve(recs_h)}}
+    stop_check()
     yield stamp(f"-> adaptive attacker ({C.ADAPTIVE_ROUNDS} rounds vs best stack)...")
     adaptive, hit = checkpoint("adaptive", _adaptive)
     _save()
@@ -218,6 +262,14 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
                                "best_stack": best["stack"], "frr": best["frr"]})),
         encoding="utf-8")
 
+    # Preserve the honest from-scratch duration when this run merely resumed (see _pick_elapsed).
+    new_elapsed = round(time.time() - t0, 1)
+    prev_elapsed = None if fresh else load_saved_results().get("elapsed_s")
+    elapsed_s = _pick_elapsed(new_elapsed, prev_elapsed, fresh)
+    if elapsed_s != new_elapsed:
+        yield stamp(f"kept prior full-run time elapsed_s={elapsed_s}s "
+                    f"(this resume computed in {new_elapsed}s — tick 'Start fresh' to re-time a full run)")
+
     results = {
         "model": C.GEN_MODEL, "mode": "FAST" if C.FAST_MODE else "FULL",
         "asr_undefended_overall": metrics.asr(undef),
@@ -233,7 +285,7 @@ def run(profile: str = "quick", offline: bool | None = None, controller=None):
         "tuned_thresholds": tuned["best_params"],
         "tuned_metrics": tuned["tuned_metrics"],
         "n_stacks_screened": len(search["screened"]),
-        "elapsed_s": round(time.time() - t0, 1),
+        "elapsed_s": elapsed_s,
     }
     (ART / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     _save()

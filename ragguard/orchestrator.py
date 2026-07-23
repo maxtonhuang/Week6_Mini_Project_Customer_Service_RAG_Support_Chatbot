@@ -15,6 +15,17 @@ from . import config, metrics
 from .schemas import RunRecord
 
 
+class RunCancelled(Exception):
+    """Raised when a caller-supplied ``should_stop()`` asks a long phase to abort early
+    (e.g. the UI Stop button). Propagates up so the run ends BEFORE results.json is written,
+    leaving previously-saved results untouched."""
+
+
+def _stop(should_stop) -> None:
+    if should_stop is not None and should_stop():
+        raise RunCancelled()
+
+
 # ------------------------------ helpers ------------------------------
 
 def _defense_ids(defenses) -> list[str]:
@@ -114,6 +125,7 @@ def two_stage_search(
     pipeline, attacks, judge, all_defenses, benign_eval,
     screen_n=None, confirm_top=None, screen_benign=None,
     objective: Callable[[dict], float] | None = None,
+    should_stop=None,
 ) -> dict:
     """Screen ALL 2^k defense-stack subsets cheaply (small attack + benign samples),
     then re-evaluate the top few at full sample size and the FULL benign set. Returns
@@ -134,6 +146,7 @@ def two_stage_search(
     screened: list[dict] = []
     screen_benign_set = benign_eval[:screen_benign]
     for subset in subsets:
+        _stop(should_stop)   # let the UI Stop button abort between stacks (the long phase)
         m = evaluate_stack(pipeline, attacks, judge, subset or None, screen_benign_set, n=screen_n)
         m["score"] = objective(m)
         screened.append(m)
@@ -142,6 +155,7 @@ def two_stage_search(
     # Stage 2 — confirm the top finalists at full n.
     finalists: list[dict] = []
     for m in screened[:confirm_top]:
+        _stop(should_stop)
         full = evaluate_stack(pipeline, attacks, judge, m["_defenses"] or None, benign_eval,
                               n=config.N_PER_ATTACK)
         full["score"] = objective(full)
@@ -170,13 +184,16 @@ def _clean(m: dict) -> dict:
 
 # ------------------------------ attack x defense matrix ------------------------------
 
-def attack_defense_matrix(pipeline, attacks, judge, defenses_list, n=None) -> list[RunRecord]:
+def attack_defense_matrix(pipeline, attacks, judge, defenses_list, n=None,
+                          should_stop=None) -> list[RunRecord]:
     """Records for: no defense, each single defense, and the full stack — for the
     attack x defense heatmap."""
     n = config.N_PER_ATTACK if n is None else n
     records: list[RunRecord] = []
+    _stop(should_stop)
     records += run_suite(pipeline, attacks, judge, defenses=None, n=n, stack_label="none")
     for d in defenses_list:
+        _stop(should_stop)   # abort between single-defence columns
         records += run_suite(pipeline, attacks, judge, defenses=[d], n=n,
                              stack_label=RunRecord.stack_label([getattr(d, "id", "?")]))
     if len(defenses_list) > 1:

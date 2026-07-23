@@ -7,6 +7,7 @@ from ragguard import config, corpus, prompts, rag
 from ragguard import canary as cm
 from ragguard.app import DemoController, build_app
 from ragguard.attacks import build_all_attacks
+from ragguard.cache import CachedLLM
 from ragguard.defenses import build_all_defenses
 from ragguard.judge import RuleJudge
 
@@ -15,7 +16,10 @@ autotune.apply()   # detect VRAM -> bf16 / 4-bit / smaller model (+ install bits
 print("building real pipeline...", flush=True)
 docs, benign = corpus.build_knowledge_base()
 canaries = [d for d in docs if d.is_canary()]
-llm = rag.QwenLLM()
+# Wrap the model in the disk generation cache so a UI Run/Resume reuses generations from an
+# earlier run (and the CLI's gen_cache.json) instead of recomputing every prompt — the same
+# cache the CLI full run uses, so identical prompts are near-instant.
+llm = CachedLLM(rag.QwenLLM(), path=config.artifact_dir() / "gen_cache.json")
 retr = rag.EmbeddingRetriever(docs)
 pipe = rag.RagPipeline(retr, llm)
 judge = RuleJudge(canary_tokens=cm.canary_tokens(canaries),

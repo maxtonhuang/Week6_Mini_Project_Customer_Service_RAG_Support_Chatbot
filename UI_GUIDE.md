@@ -181,20 +181,22 @@ The app is a **customer-service chatbot that we attack and defend**. It has four
 
 ## 7. Tab 5 — Run Pipeline (one button)
 
-This runs the **whole** red-team → blue-team pipeline and fills in every other tab — no notebook cell needed.
+This runs **all attacks + defenses** across the whole pipeline and fills in every other tab — no notebook cell needed.
 
 ![RAGGuard Run Pipeline tab — profile selector, Run button, and live progress log](artifacts/ui_v3_run.png)
 
-*The **Run Pipeline** tab: pick **Quick** or **Full**, press **▶ Run full pipeline**, and watch the live log; the Attack/Defense/Governance tabs refresh when it finishes.*
+*The **Run Pipeline** tab: pick **Quick** or **Full** and press the run button (its label follows the profile — **▶ Run Quick pipeline** / **▶ Run Full pipeline**), then watch the live log; the Attack/Defense/Governance tabs refresh when it finishes.*
 
-- Pick a **Profile**:
-  - **Quick (~minutes)** — reduced sample sizes; great for a demo and enough to populate all tabs.
-  - **Full (~hours, resumable)** — the paper-grade numbers. If the Colab runtime disconnects mid-run, just press **▶ Run full pipeline** again — it resumes from the last completed phase.
-- Press **▶ Run full pipeline**. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots), with a **live elapsed timer** that ticks every few seconds so it never looks frozen — even during the long 64-stack search.
+- Pick a **Profile** (the button label tracks it). Both profiles run the **same phases** on all 9 attacks and every defence — only the **sample sizes** differ (the UI states this under the selector):
+  - **Quick (~minutes)** — smaller samples (8 prompts/attack · 3 adaptive rounds · defence search screens each stack on 6 attacks + 8 benign); great for a demo and enough to populate every tab.
+  - **Full (~hours, resumable)** — report-grade samples (50 prompts/attack · 6 rounds · 15 attacks + 20 benign per screen): the numbers you cite in the write-up. If the Colab runtime disconnects mid-run, just press the button again — it **resumes from the last completed phase**.
+- **Resuming vs. a fresh run.** Every phase is checkpointed to `artifacts/full[_fast]/`, so a re-run loads completed phases from disk — if a run already finished, pressing again completes **in seconds** rather than recomputing (the button then reads **↻ Resume … (n/6 saved)** to make this obvious). To force a full recompute, tick **Start fresh — ignore saved checkpoints** before pressing (or delete the `artifacts/full[_fast]/` folder).
+- Press the run button. A live log streams each phase (undefended → full-stack → attack×defence matrix → defence search → Optuna → adaptive attacker → plots), with a **live elapsed timer** that ticks every few seconds so it never looks frozen — even during the long 64-stack search. If it resumed, the first log line says so and lists which checkpoints it loaded.
+- **⏹ Stop run** cancels a run in progress. It halts at the next phase/step boundary (so a long search stops within a stack or two, not instantly) and — importantly — **does not overwrite your saved results**: `results.json` is only written on a *complete* run, so a stop leaves the previous numbers intact. Completed phases stay checkpointed, so pressing Run afterwards **resumes** from where you stopped.
 - When it finishes, the **Attack Lab**, **Defense Lab** and **Governance** tabs refresh automatically with the new numbers and plots.
 - **🔄 Reload saved results** re-reads the last saved run — handy when you reopen the UI and want the previous results back.
 
-> It reuses the model the UI already loaded (no second copy in VRAM). Results save to `artifacts/` — or to **Google Drive** if mounted (below).
+> It reuses the model the UI already loaded (no second copy in VRAM), and wraps it in a **disk generation cache** (`artifacts/gen_cache.json`) so identical prompts across runs aren't recomputed — a re-run reuses earlier generations instead of regenerating them. Results save to `artifacts/` — or to **Google Drive** if mounted (below).
 
 ### Persisting across reloads (Google Drive)
 
